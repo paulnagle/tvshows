@@ -5,17 +5,26 @@ import {
   FlatList,
   Text,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { SearchStackParamList } from '../types';
 import { searchShows } from '../services/omdb';
 import type { Show } from '../types';
+import {
+  addToWatchShow,
+  getAllCurrentShows,
+  getAllToWatchShows,
+  getAllWatchedShows,
+} from '../db/database';
 import ShowCard from '../components/ShowCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
 
-type Nav = NativeStackNavigationProp<SearchStackParamList, 'Search'>;
+type Nav = NativeStackNavigationProp<SearchStackParamList, 'SearchScreen'>;
+
+type ListStatus = 'watching' | 'towatch' | 'watched';
 
 export default function SearchScreen() {
   const navigation = useNavigation<Nav>();
@@ -24,7 +33,47 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [addedIDs, setAddedIDs] = useState<Set<string>>(new Set());
+  const [listMap, setListMap] = useState<Map<string, ListStatus>>(new Map());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Refresh list membership whenever the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      async function loadLists() {
+        const [watching, toWatch, watched] = await Promise.all([
+          getAllCurrentShows(),
+          getAllToWatchShows(),
+          getAllWatchedShows(),
+        ]);
+        const map = new Map<string, ListStatus>();
+        watched.forEach((s) => map.set(s.imdbID, 'watched'));
+        toWatch.forEach((s) => map.set(s.imdbID, 'towatch'));
+        watching.forEach((s) => map.set(s.imdbID, 'watching'));
+        setListMap(map);
+      }
+      loadLists();
+    }, []),
+  );
+
+  async function handleAddToWatch(show: Show) {
+    try {
+      await addToWatchShow(show);
+      setAddedIDs((prev) => new Set(prev).add(show.imdbID));
+      setListMap((prev) => new Map(prev).set(show.imdbID, 'towatch'));
+    } catch {
+      Alert.alert('Error', 'Could not add to To Watch list.');
+    }
+  }
+
+  function getBadge(imdbID: string): { badge: string; badgeColor: string } | null {
+    const status = listMap.get(imdbID);
+    if (status === 'watching') return { badge: '▶ Watching', badgeColor: 'bg-emerald-800' };
+    if (status === 'towatch') return { badge: '✓ To Watch', badgeColor: 'bg-[#1e3a5f]' };
+    if (status === 'watched') return { badge: '✓ Watched', badgeColor: 'bg-[#374151]' };
+    if (addedIDs.has(imdbID)) return { badge: '✓ To Watch', badgeColor: 'bg-[#1e3a5f]' };
+    return null;
+  }
 
   const handleChangeText = useCallback((text: string) => {
     setQuery(text);
@@ -97,14 +146,23 @@ export default function SearchScreen() {
           data={results}
           keyExtractor={(item) => item.imdbID}
           contentContainerStyle={{ paddingBottom: 20 }}
-          renderItem={({ item }) => (
-            <ShowCard
-              show={item}
-              onPress={() =>
-                navigation.navigate('ShowDetail', { imdbID: item.imdbID })
-              }
-            />
-          )}
+          renderItem={({ item }) => {
+            const badgeInfo = getBadge(item.imdbID);
+            const alreadyInAList = listMap.has(item.imdbID) || addedIDs.has(item.imdbID);
+            return (
+              <ShowCard
+                show={item}
+                onPress={() =>
+                  navigation.navigate('ShowDetail', { imdbID: item.imdbID })
+                }
+                onAddToWatch={
+                  alreadyInAList ? undefined : () => handleAddToWatch(item)
+                }
+                badge={badgeInfo?.badge}
+                badgeColor={badgeInfo?.badgeColor}
+              />
+            );
+          }}
         />
       )}
     </View>

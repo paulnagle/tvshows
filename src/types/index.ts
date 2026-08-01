@@ -23,11 +23,24 @@ export interface CurrentShow extends Show {
 export interface WatchedShow extends Show {
   id: number;
   finishedAt: string; // ISO date string
+  lastSeason: number;
+  lastEpisode: number;
+}
+
+// ─── To Watch (want to watch) ─────────────────────────────────────────────────
+export interface ToWatchShow extends Show {
+  id: number;
+  addedAt: string; // ISO date string
 }
 
 // ─── Navigation param types ───────────────────────────────────────────────────
 export type WatchingStackParamList = {
   WatchingList: undefined;
+  ShowDetail: { imdbID: string };
+};
+
+export type ToWatchStackParamList = {
+  ToWatchList: undefined;
   ShowDetail: { imdbID: string };
 };
 
@@ -42,6 +55,10 @@ export type RecommendationsStackParamList = {
 };
 
 export type SearchStackParamList = {
-  Search: undefined;
+  SearchScreen: undefined;
   ShowDetail: { imdbID: string };
+};
+
+export type SettingsStackParamList = {
+  SettingsScreen: undefined;
 };

@@ -1,12 +1,18 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, FlatList, Alert, Text } from 'react-native';
+import { View, Alert, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import DraggableFlatList, {
+  RenderItemParams,
+  ScaleDecorator,
+} from 'react-native-draggable-flatlist';
 import type { WatchingStackParamList, CurrentShow } from '../types';
 import {
   getAllCurrentShows,
   updateEpisodeProgress,
   moveToWatched,
+  removeCurrentShow,
+  updateShowOrder,
 } from '../db/database';
 import { getSeasonEpisodeCounts } from '../services/omdb';
 import EmptyState from '../components/EmptyState';
@@ -53,7 +59,10 @@ export default function WatchingListScreen() {
   }, [navigation, peerCount]);
 
   const loadShows = useCallback(async () => {
-    setLoading(true);
+    setShows((prev) => {
+      if (prev.length === 0) setLoading(true);
+      return prev;
+    });
     try {
       const data = await getAllCurrentShows();
       setShows(data);
@@ -136,6 +145,24 @@ export default function WatchingListScreen() {
     );
   }
 
+  function handleRemove(show: CurrentShow) {
+    Alert.alert(
+      'Remove Show?',
+      `Remove "${show.title}" from your watchlist?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            await removeCurrentShow(show.imdbID);
+            setShows((prev) => prev.filter((s) => s.imdbID !== show.imdbID));
+          },
+        },
+      ]
+    );
+  }
+
   function handleFinished(show: CurrentShow) {
     Alert.alert(
       'Mark as Finished?',
@@ -154,6 +181,51 @@ export default function WatchingListScreen() {
     );
   }
 
+  const handleDragEnd = useCallback(
+    async ({ data }: { data: CurrentShow[] }) => {
+      setShows(data);
+      await updateShowOrder(data.map((s) => s.imdbID));
+    },
+    []
+  );
+
+  const renderItem = useCallback(
+    ({ item, drag, isActive }: RenderItemParams<CurrentShow>) => {
+      const counts = episodeCounts[item.imdbID] ?? [];
+      const rawMax = counts[item.currentSeason - 1];
+      const maxEpisode = rawMax != null && rawMax > 0 ? rawMax : Infinity;
+      const totalSeasons = parseInt(item.totalSeasons, 10);
+      return (
+        <ScaleDecorator>
+          <ShowCard
+            show={item}
+            onPress={() =>
+              navigation.navigate('ShowDetail', { imdbID: item.imdbID })
+            }
+            badge={`▶ S${item.currentSeason}E${item.currentEpisode}`}
+            badgeColor="bg-[#6366f1]"
+            controls={{
+              onPrevEpisode: () => handlePrevEpisode(item),
+              onNextEpisode: () => handleNextEpisode(item),
+              onPrevSeason: () => handlePrevSeason(item),
+              onNextSeason: () => handleNextSeason(item),
+              onFinished: () => handleFinished(item),
+              episodeAtStart: item.currentEpisode <= 1,
+              episodeDone: isFinite(maxEpisode) && item.currentEpisode >= maxEpisode,
+              seasonAtStart: item.currentSeason <= 1,
+              seasonDone: !isNaN(totalSeasons) && item.currentSeason >= totalSeasons,
+            }}
+            onRemove={() => handleRemove(item)}
+            onDrag={drag}
+            isDragging={isActive}
+          />
+        </ScaleDecorator>
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [episodeCounts, navigation]
+  );
+
   if (loading) return <LoadingSpinner />;
 
   if (shows.length === 0) {
@@ -167,37 +239,13 @@ export default function WatchingListScreen() {
 
   return (
     <View className="flex-1 bg-[#0f172a]">
-      <FlatList
+      <DraggableFlatList
         data={shows}
         keyExtractor={(item) => item.imdbID}
         contentContainerStyle={{ paddingTop: 12, paddingBottom: 20 }}
-        renderItem={({ item }) => {
-          const counts = episodeCounts[item.imdbID] ?? [];
-          const rawMax = counts[item.currentSeason - 1];
-          const maxEpisode = rawMax != null && rawMax > 0 ? rawMax : Infinity;
-          const totalSeasons = parseInt(item.totalSeasons, 10);
-          return (
-            <ShowCard
-              show={item}
-              onPress={() =>
-                navigation.navigate('ShowDetail', { imdbID: item.imdbID })
-              }
-              badge={`▶ S${item.currentSeason}E${item.currentEpisode}`}
-              badgeColor="bg-[#6366f1]"
-              controls={{
-                onPrevEpisode: () => handlePrevEpisode(item),
-                onNextEpisode: () => handleNextEpisode(item),
-                onPrevSeason: () => handlePrevSeason(item),
-                onNextSeason: () => handleNextSeason(item),
-                onFinished: () => handleFinished(item),
-                episodeAtStart: item.currentEpisode <= 1,
-                episodeDone: isFinite(maxEpisode) && item.currentEpisode >= maxEpisode,
-                seasonAtStart: item.currentSeason <= 1,
-                seasonDone: !isNaN(totalSeasons) && item.currentSeason >= totalSeasons,
-              }}
-            />
-          );
-        }}
+        onDragEnd={handleDragEnd}
+        renderItem={renderItem}
+        activationDistance={5}
       />
     </View>
   );

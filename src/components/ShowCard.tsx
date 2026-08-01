@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import type { Show } from '../types';
 
 interface ProgressControls {
@@ -21,30 +22,50 @@ interface ShowCardProps {
   badge?: string;
   badgeColor?: string;
   controls?: ProgressControls;
+  onRemove?: () => void;
+  onRewatch?: () => void;
+  onStartWatching?: () => void;
+  onAddToWatch?: () => void;
+  /** Long-press drag handler supplied by DraggableFlatList */
+  onDrag?: (event: GestureResponderEvent) => void;
+  isDragging?: boolean;
 }
 
 function ControlBtn({
   label,
   onPress,
   disabled,
+  finished = false,
 }: {
   label: string;
   onPress: () => void;
   disabled: boolean;
+  finished?: boolean;
 }) {
+  const bg = disabled ? '#0f172a' : finished ? '#064e3b' : '#0f172a';
+  const borderColor = disabled ? '#1e293b' : finished ? '#065f46' : '#334155';
+  const textColor = disabled ? '#1e293b' : finished ? '#6ee7b7' : '#94a3b8';
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-      className={`px-3 py-1.5 rounded-md border ${
-        disabled
-          ? 'border-[#1e293b] opacity-30'
-          : 'bg-[#0f172a] border-[#334155] active:opacity-70'
-      }`}
+      style={{
+        flex: 1,
+        paddingVertical: 6,
+        borderRadius: 6,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: bg,
+        borderColor,
+        opacity: disabled ? 0.3 : 1,
+      }}
       activeOpacity={0.6}
     >
-      <Text className="text-[#94a3b8] text-xs font-semibold">{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: '600', color: textColor }}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -56,11 +77,20 @@ export default function ShowCard({
   badge,
   badgeColor = 'bg-[#6366f1]',
   controls,
+  onRemove,
+  onRewatch,
+  onStartWatching,
+  onAddToWatch,
+  onDrag,
+  isDragging = false,
 }: ShowCardProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
+      onLongPress={onDrag}
+      delayLongPress={300}
       className="bg-[#1e293b] rounded-xl mx-4 mb-3 p-3 border border-[#334155]"
+      style={isDragging ? { opacity: 0.9, borderColor: '#6366f1' } : undefined}
       activeOpacity={0.7}
     >
       <View className="flex-row items-center">
@@ -118,30 +148,85 @@ export default function ShowCard({
               <Text className="text-white text-xs font-semibold">{badge}</Text>
             </View>
           ) : null}
+          {onDrag ? (
+            <Text style={{ color: '#475569', fontSize: 16, lineHeight: 18 }}>☰</Text>
+          ) : null}
         </View>
       </View>
 
       {/* Inline progress controls */}
       {controls && (
-        <>
-          <View className="flex-row items-center justify-between mt-2.5 pt-2 border-t border-[#334155]">
-            <View className="flex-row gap-1.5">
-              <ControlBtn label="− Ep" onPress={controls.onPrevEpisode} disabled={controls.episodeAtStart} />
-              <ControlBtn label="+ Ep" onPress={controls.onNextEpisode} disabled={controls.episodeDone} />
-            </View>
-            <View className="flex-row gap-1.5">
-              <ControlBtn label="− S" onPress={controls.onPrevSeason} disabled={controls.seasonAtStart} />
-              <ControlBtn label="+ S" onPress={controls.onNextSeason} disabled={controls.seasonDone} />
-            </View>
-          </View>
-          <TouchableOpacity
-            onPress={controls.onFinished}
-            className="mt-2 bg-emerald-900 border border-emerald-700 rounded-md py-2 items-center"
-            activeOpacity={0.7}
-          >
-            <Text className="text-emerald-300 text-xs font-semibold">Finished ✓</Text>
-          </TouchableOpacity>
-        </>
+        <View className="flex-row items-center mt-2.5 pt-2 border-t border-[#334155] gap-1.5">
+          <ControlBtn label="− Ep" onPress={controls.onPrevEpisode} disabled={controls.episodeAtStart} />
+          <ControlBtn label="+ Ep" onPress={controls.onNextEpisode} disabled={controls.episodeDone} />
+          <ControlBtn label="Finish" onPress={controls.onFinished} disabled={false} finished />
+          <ControlBtn label="− S" onPress={controls.onPrevSeason} disabled={controls.seasonAtStart} />
+          <ControlBtn label="+ S" onPress={controls.onNextSeason} disabled={controls.seasonDone} />
+        </View>
+      )}
+
+      {/* Watch Again + Remove row (history page — no controls, no To Watch actions) */}
+      {!controls && !onStartWatching && !onAddToWatch && (onRewatch || onRemove) && (
+        <View className="flex-row mt-2 gap-1.5">
+          {onRewatch && (
+            <TouchableOpacity
+              onPress={onRewatch}
+              className="bg-indigo-900 border border-indigo-700 rounded-md py-2 items-center"
+              style={{ flex: 4 }}
+              activeOpacity={0.7}
+            >
+              <Text className="text-indigo-300 text-xs font-semibold">▶ Watch Again</Text>
+            </TouchableOpacity>
+          )}
+          {onRemove && (
+            <TouchableOpacity
+              onPress={onRemove}
+              className="bg-red-950 border border-red-800 rounded-md py-2 items-center"
+              style={{ flex: 1 }}
+              activeOpacity={0.7}
+            >
+              <Text className="text-red-400 text-xs font-semibold">✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Start Watching + Remove row (To Watch page) */}
+      {!controls && (onStartWatching || onAddToWatch) && (
+        <View className="flex-row mt-2 gap-1.5">
+          {onStartWatching && (
+            <TouchableOpacity
+              onPress={onStartWatching}
+              className="bg-emerald-900 border border-emerald-700 rounded-md py-2 items-center"
+              style={{ flex: 3 }}
+              activeOpacity={0.7}
+            >
+              <Text className="text-emerald-300 text-xs font-semibold">▶ Start Watching</Text>
+            </TouchableOpacity>
+          )}
+          {onStartWatching && onRemove && (
+            <TouchableOpacity
+              onPress={onRemove}
+              className="bg-red-950 border border-red-800 rounded-md py-2 items-center"
+              style={{ flex: 1 }}
+              activeOpacity={0.7}
+            >
+              <Text className="text-red-400 text-xs font-semibold">✕</Text>
+            </TouchableOpacity>
+          )}
+          {onAddToWatch && (
+            <TouchableOpacity
+              onPress={onAddToWatch}
+              className="bg-[#1e3a5f] border border-[#2563eb] rounded-md py-2 items-center"
+              style={onStartWatching ? { flex: 1 } : { flex: 4 }}
+              activeOpacity={0.7}
+            >
+              <Text className="text-blue-300 text-xs font-semibold">
+                {onStartWatching ? '✕' : '+ To Watch'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
     </TouchableOpacity>
   );

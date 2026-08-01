@@ -9,12 +9,16 @@ import HistoryListScreen from '../screens/HistoryListScreen';
 import RecommendationsScreen from '../screens/RecommendationsScreen';
 import SearchScreen from '../screens/SearchScreen';
 import ShowDetailScreen from '../screens/ShowDetailScreen';
+import ToWatchListScreen from '../screens/ToWatchListScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 import type {
   WatchingStackParamList,
   HistoryStackParamList,
   RecommendationsStackParamList,
   SearchStackParamList,
+  ToWatchStackParamList,
+  SettingsStackParamList,
 } from '../types';
 
 // ─── Stack navigators ─────────────────────────────────────────────────────────
@@ -52,9 +56,28 @@ const SearchStack = createNativeStackNavigator<SearchStackParamList>();
 function SearchNavigator() {
   return (
     <SearchStack.Navigator screenOptions={stackScreenOptions}>
-      <SearchStack.Screen name="Search" component={SearchScreen} options={{ title: 'Search' }} />
+      <SearchStack.Screen name="SearchScreen" component={SearchScreen} options={{ title: 'Search' }} />
       <SearchStack.Screen name="ShowDetail" component={ShowDetailScreen} options={{ title: '' }} />
     </SearchStack.Navigator>
+  );
+}
+
+const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
+function SettingsNavigator() {
+  return (
+    <SettingsStack.Navigator screenOptions={stackScreenOptions}>
+      <SettingsStack.Screen name="SettingsScreen" component={SettingsScreen} options={{ title: 'Settings' }} />
+    </SettingsStack.Navigator>
+  );
+}
+
+const ToWatchStack = createNativeStackNavigator<ToWatchStackParamList>();
+function ToWatchNavigator() {
+  return (
+    <ToWatchStack.Navigator screenOptions={stackScreenOptions}>
+      <ToWatchStack.Screen name="ToWatchList" component={ToWatchListScreen} options={{ title: 'To Watch' }} />
+      <ToWatchStack.Screen name="ShowDetail" component={ShowDetailScreen} options={{ title: '' }} />
+    </ToWatchStack.Navigator>
   );
 }
 
@@ -85,16 +108,33 @@ export default function AppNavigator() {
           tabBarActiveTintColor: '#6366f1',
           tabBarInactiveTintColor: '#94a3b8',
           tabBarLabel: ({ color }) => {
-            const labels: Record<string, string> = {
-              Watching: '📺 WatchList',
-              History: '✅ History',
-              Recommendations: '💡 For You',
-              Search: '🔍 Search',
-            };
+            if (route.name === 'Watching') {
+              return (
+                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>📺</Text>
+              );
+            }
+            if (route.name === 'ToWatch') {
+              return (
+                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>🔖</Text>
+              );
+            }
+            if (route.name === 'History') {
+              return (
+                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>⏳</Text>
+              );
+            }
+            if (route.name === 'Recommendations') {
+              return (
+                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>💡</Text>
+              );
+            }
+            if (route.name === 'Search') {
+              return (
+                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>🔍</Text>
+              );
+            }
             return (
-              <Text style={{ color, fontSize: 14, fontWeight: '500' }}>
-                {labels[route.name] ?? route.name}
-              </Text>
+              <Text style={{ color, fontSize: 30, lineHeight: 34 }}>⚙️</Text>
             );
           },
           tabBarIcon: () => null,
@@ -102,9 +142,11 @@ export default function AppNavigator() {
         })}
       >
         <Tab.Screen name="Watching" component={WatchingNavigator} />
+        <Tab.Screen name="ToWatch" component={ToWatchNavigator} />
         <Tab.Screen name="History" component={HistoryNavigator} />
         <Tab.Screen name="Recommendations" component={RecommendationsNavigator} />
         <Tab.Screen name="Search" component={SearchNavigator} />
+        <Tab.Screen name="Settings" component={SettingsNavigator} />
       </Tab.Navigator>
     </NavigationContainer>
   );

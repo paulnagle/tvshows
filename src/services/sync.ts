@@ -18,7 +18,7 @@
  */
 
 import Zeroconf from 'react-native-zeroconf';
-import type { CurrentShow, WatchedShow } from '../types';
+import type { CurrentShow, WatchedShow, ToWatchShow } from '../types';
 
 // ─── Sync event types ─────────────────────────────────────────────────────────
 
@@ -27,6 +27,8 @@ export type SyncEvent =
   | { type: 'UPDATE_PROGRESS'; payload: { imdbID: string; currentSeason: number; currentEpisode: number } }
   | { type: 'REMOVE_CURRENT'; payload: { imdbID: string } }
   | { type: 'MOVE_TO_WATCHED'; payload: { imdbID: string; finishedAt: string } }
+  | { type: 'ADD_TO_WATCH'; payload: ToWatchShow }
+  | { type: 'REMOVE_TO_WATCH'; payload: { imdbID: string } }
   | { type: 'SNAPSHOT_REQUEST' }
   | { type: 'SNAPSHOT'; payload: { currentShows: CurrentShow[]; watchedShows: WatchedShow[] } };
 

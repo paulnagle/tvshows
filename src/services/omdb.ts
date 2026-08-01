@@ -75,15 +75,25 @@ function mapDetail(detail: OmdbDetailResponse): Show {
 export async function searchShows(query: string): Promise<Show[]> {
   if (!query.trim()) return [];
 
-  const url = `${BASE_URL}?apikey=${API_KEY}&s=${encodeURIComponent(query)}&type=series`;
-  const res = await fetch(url);
-  const data: OmdbSearchResponse = await res.json();
+  const encoded = encodeURIComponent(query);
+  const [page1, page2] = await Promise.all([
+    fetch(`${BASE_URL}?apikey=${API_KEY}&s=${encoded}&type=series&page=1`).then((r) => r.json() as Promise<OmdbSearchResponse>),
+    fetch(`${BASE_URL}?apikey=${API_KEY}&s=${encoded}&type=series&page=2`).then((r) => r.json() as Promise<OmdbSearchResponse>),
+  ]);
 
-  if (data.Response === 'False') {
+  if (page1.Response === 'False') {
     // Surface API-level errors (invalid key, no results, etc.) to the caller
-    throw new Error(data.Error ?? 'No results found');
+    throw new Error(page1.Error ?? 'No results found');
   }
-  return (data.Search ?? []).map(mapSearchItem);
+
+  const page1Results = (page1.Search ?? []).map(mapSearchItem);
+  // Page 2 may not exist for short result sets — ignore its errors silently
+  const page2Results = page2.Response === 'True' ? (page2.Search ?? []).map(mapSearchItem) : [];
+
+  // Deduplicate by imdbID (page 2 shouldn't overlap but be safe)
+  const seen = new Set(page1Results.map((s) => s.imdbID));
+  const merged = [...page1Results, ...page2Results.filter((s) => !seen.has(s.imdbID))];
+  return merged;
 }
 
 export async function getShowDetails(imdbID: string): Promise<Show> {

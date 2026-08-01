@@ -20,6 +20,8 @@ import {
   addCurrentShow,
   isCurrentShow,
   isWatchedShow,
+  addToWatchShow,
+  isToWatchShow,
 } from '../db/database';
 import type { Show } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -41,19 +43,23 @@ export default function ShowDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [alreadyWatching, setAlreadyWatching] = useState(false);
   const [alreadyWatched, setAlreadyWatched] = useState(false);
+  const [alreadyToWatch, setAlreadyToWatch] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [addingToWatch, setAddingToWatch] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        const [detail, watching, watched] = await Promise.all([
+        const [detail, watching, watched, toWatch] = await Promise.all([
           getShowDetails(imdbID),
           isCurrentShow(imdbID),
           isWatchedShow(imdbID),
+          isToWatchShow(imdbID),
         ]);
         setShow(detail);
         setAlreadyWatching(watching);
         setAlreadyWatched(watched);
+        setAlreadyToWatch(toWatch);
 
         // Fetch episode counts per season if we know how many seasons there are
         const total = parseInt(detail.totalSeasons, 10);
@@ -76,11 +82,25 @@ export default function ShowDetailScreen() {
     try {
       await addCurrentShow(show);
       setAlreadyWatching(true);
-      Alert.alert('Added!', `"${show.title}" added to your watchlist.`);
+      Alert.alert('Added!', `"${show.title}" added to your Watch List.`);
     } catch {
       Alert.alert('Error', 'Could not add show. Please try again.');
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function handleAddToWatch() {
+    if (!show) return;
+    setAddingToWatch(true);
+    try {
+      await addToWatchShow(show);
+      setAlreadyToWatch(true);
+      Alert.alert('Added!', `"${show.title}" added to your To Watch list.`);
+    } catch {
+      Alert.alert('Error', 'Could not add show. Please try again.');
+    } finally {
+      setAddingToWatch(false);
     }
   }
 
@@ -100,11 +120,17 @@ export default function ShowDetailScreen() {
     );
   }
 
-  const buttonLabel = alreadyWatching
+  const watchButtonLabel = alreadyWatching
     ? '✓ Already Watching'
     : adding
     ? 'Adding…'
-    : '+ Add to Watching';
+    : '+ Add to Watch List';
+
+  const toWatchButtonLabel = alreadyToWatch
+    ? '✓ In To Watch List'
+    : addingToWatch
+    ? 'Adding…'
+    : '+ Add to To Watch';
 
   return (
     <ScrollView className="flex-1 bg-[#0f172a]" contentContainerStyle={{ paddingBottom: 40 }}>
@@ -122,20 +148,18 @@ export default function ShowDetailScreen() {
       )}
 
       <View className="px-5 pt-5">
-        {/* Title & year */}
-        <Text className="text-[#f1f5f9] text-2xl font-bold">{show.title}</Text>
-        <Text className="text-[#94a3b8] text-base mt-1">{show.year}</Text>
+         {/* Title & year */}
+         <Text className="text-[#f1f5f9] text-2xl font-bold">{show.title}</Text>
+         <Text className="text-[#94a3b8] text-base mt-1">{show.year}</Text>
 
-        {/* IMDB rating */}
-        {show.imdbRating !== 'N/A' && (
-          <View className="flex-row items-center mt-3">
-            <Text className="text-yellow-400 text-xl">⭐</Text>
-            <Text className="text-[#f1f5f9] text-2xl font-bold ml-1">
-              {show.imdbRating}
-            </Text>
-            <Text className="text-[#94a3b8] text-base ml-1">/ 10 (IMDB)</Text>
-          </View>
-        )}
+         {/* IMDB rating */}
+         <View className="flex-row items-center mt-3">
+           <Text className="text-yellow-400 text-xl">⭐</Text>
+           <Text className="text-[#f1f5f9] text-2xl font-bold ml-1">
+             {show.imdbRating && show.imdbRating !== 'N/A' ? show.imdbRating : 'N/A'}
+           </Text>
+           <Text className="text-[#94a3b8] text-base ml-1">/ 10 (IMDB)</Text>
+         </View>
 
         {/* Seasons & episode counts */}
         {show.totalSeasons !== 'N/A' && (
@@ -197,24 +221,49 @@ export default function ShowDetailScreen() {
           </View>
         )}
 
-        {/* Add button */}
+        {/* Buttons: only shown if not already in watch history */}
         {!alreadyWatched && (
-          <TouchableOpacity
-            onPress={handleAdd}
-            disabled={alreadyWatching || adding}
-            className={`mt-5 rounded-xl py-3 items-center ${
-              alreadyWatching ? 'bg-[#334155]' : 'bg-[#6366f1]'
-            }`}
-            activeOpacity={0.8}
-          >
-            <Text
-              className={`font-semibold text-base ${
-                alreadyWatching ? 'text-[#94a3b8]' : 'text-white'
+          <View className="mt-5 gap-3">
+            {/* Add to Watch List */}
+            <TouchableOpacity
+              onPress={handleAdd}
+              disabled={alreadyWatching || adding}
+              className={`rounded-xl py-3 items-center ${
+                alreadyWatching ? 'bg-[#334155]' : 'bg-[#6366f1]'
               }`}
+              activeOpacity={0.8}
             >
-              {buttonLabel}
-            </Text>
-          </TouchableOpacity>
+              <Text
+                className={`font-semibold text-base ${
+                  alreadyWatching ? 'text-[#94a3b8]' : 'text-white'
+                }`}
+              >
+                {watchButtonLabel}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Add to To Watch */}
+            {!alreadyWatching && (
+              <TouchableOpacity
+                onPress={handleAddToWatch}
+                disabled={alreadyToWatch || addingToWatch}
+                className={`rounded-xl py-3 items-center border ${
+                  alreadyToWatch
+                    ? 'bg-[#334155] border-[#334155]'
+                    : 'bg-[#1e3a5f] border-[#2563eb]'
+                }`}
+                activeOpacity={0.8}
+              >
+                <Text
+                  className={`font-semibold text-base ${
+                    alreadyToWatch ? 'text-[#94a3b8]' : 'text-blue-300'
+                  }`}
+                >
+                  {toWatchButtonLabel}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </View>
     </ScrollView>

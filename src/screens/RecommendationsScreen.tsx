@@ -1,10 +1,15 @@
 import React, { useState, useCallback } from 'react';
-import { View, FlatList, Text } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { View, FlatList, Text, TouchableOpacity, Alert } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RecommendationsStackParamList, Show } from '../types';
-import { getAllWatchedShows, getAllCurrentShows } from '../db/database';
-import { getTopGenres, getRecommendations } from '../services/recommendations';
+import { getShowsByGenre, OMDB_TOP_GENRES } from '../services/recommendations';
+import {
+  addToWatchShow,
+  getAllCurrentShows,
+  getAllToWatchShows,
+  getAllWatchedShows,
+} from '../db/database';
 import ShowCard from '../components/ShowCard';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -14,95 +19,142 @@ type Nav = NativeStackNavigationProp<
   'RecommendationsList'
 >;
 
+type ListStatus = 'watching' | 'towatch' | 'watched';
+
 export default function RecommendationsScreen() {
   const navigation = useNavigation<Nav>();
-  const [recommendations, setRecommendations] = useState<Show[]>([]);
-  const [topGenres, setTopGenres] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [noGenres, setNoGenres] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [shows, setShows] = useState<Show[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [addedIDs, setAddedIDs] = useState<Set<string>>(new Set());
+  const [listMap, setListMap] = useState<Map<string, ListStatus>>(new Map());
 
-  const loadRecommendations = useCallback(async () => {
+  // Refresh list membership whenever the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      async function loadLists() {
+        const [watching, toWatch, watched] = await Promise.all([
+          getAllCurrentShows(),
+          getAllToWatchShows(),
+          getAllWatchedShows(),
+        ]);
+        const map = new Map<string, ListStatus>();
+        watched.forEach((s) => map.set(s.imdbID, 'watched'));
+        toWatch.forEach((s) => map.set(s.imdbID, 'towatch'));
+        watching.forEach((s) => map.set(s.imdbID, 'watching'));
+        setListMap(map);
+      }
+      loadLists();
+    }, []),
+  );
+
+  async function handleAddToWatch(show: Show) {
+    try {
+      await addToWatchShow(show);
+      setAddedIDs((prev) => new Set(prev).add(show.imdbID));
+      setListMap((prev) => new Map(prev).set(show.imdbID, 'towatch'));
+    } catch {
+      Alert.alert('Error', 'Could not add to To Watch list.');
+    }
+  }
+
+  function getBadge(imdbID: string): { badge: string; badgeColor: string } | null {
+    const status = listMap.get(imdbID);
+    if (status === 'watching') return { badge: '▶ Watching', badgeColor: 'bg-emerald-800' };
+    if (status === 'towatch') return { badge: '✓ To Watch', badgeColor: 'bg-[#1e3a5f]' };
+    if (status === 'watched') return { badge: '✓ Watched', badgeColor: 'bg-[#374151]' };
+    if (addedIDs.has(imdbID)) return { badge: '✓ To Watch', badgeColor: 'bg-[#1e3a5f]' };
+    return null;
+  }
+
+  const selectGenre = useCallback(async (genre: string) => {
+    // Tapping the active genre deselects it
+    if (genre === selectedGenre) {
+      setSelectedGenre(null);
+      setShows([]);
+      return;
+    }
+
+    setSelectedGenre(genre);
     setLoading(true);
     try {
-      const [watched, current] = await Promise.all([
-        getAllWatchedShows(),
-        getAllCurrentShows(),
-      ]);
-
-      const allShows = [...watched, ...current];
-      const genres = getTopGenres(allShows);
-
-      if (genres.length === 0) {
-        setNoGenres(true);
-        setRecommendations([]);
-        return;
-      }
-
-      setNoGenres(false);
-      setTopGenres(genres);
-
-      const excludeIDs = allShows.map((s) => s.imdbID);
-      const recs = await getRecommendations(genres, excludeIDs);
-      setRecommendations(recs);
+      const results = await getShowsByGenre(genre);
+      setShows(results);
+    } catch {
+      setShows([]);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadRecommendations();
-    }, [loadRecommendations])
-  );
-
-  if (loading) return <LoadingSpinner />;
-
-  if (noGenres) {
-    return (
-      <EmptyState
-        message="Nothing to recommend yet"
-        subMessage="Add and watch some shows first — recommendations are based on your genre preferences"
-      />
-    );
-  }
-
-  if (recommendations.length === 0) {
-    return (
-      <EmptyState
-        message="No new recommendations"
-        subMessage="Try adding more shows to your history to improve suggestions"
-      />
-    );
-  }
+  }, [selectedGenre]);
 
   return (
     <View className="flex-1 bg-[#0f172a]">
       {/* Genre pills */}
-      <View className="px-4 pt-4 pb-2 flex-row flex-wrap gap-2">
-        <Text className="text-[#94a3b8] text-sm self-center">Based on: </Text>
-        {topGenres.map((g) => (
-          <View
-            key={g}
-            className="bg-[#6366f1]/20 border border-[#6366f1]/40 rounded-full px-3 py-1"
-          >
-            <Text className="text-[#6366f1] text-sm font-semibold">{g}</Text>
-          </View>
-        ))}
+      <View className="px-4 pt-4 pb-2">
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {OMDB_TOP_GENRES.map((g) => {
+            const active = g === selectedGenre;
+            return (
+              <TouchableOpacity
+                key={g}
+                onPress={() => selectGenre(g)}
+                className={
+                  active
+                    ? 'bg-[#6366f1] border border-[#6366f1] rounded-full px-3 py-1'
+                    : 'bg-[#1e293b] border border-[#334155] rounded-full px-3 py-1'
+                }
+              >
+                <Text
+                  className={
+                    active
+                      ? 'text-white text-sm font-semibold'
+                      : 'text-[#94a3b8] text-sm'
+                  }
+                >
+                  {g}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
-      <FlatList
-        data={recommendations}
-        keyExtractor={(item) => item.imdbID}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        renderItem={({ item }) => (
-          <ShowCard
-            show={item}
-            onPress={() =>
-              navigation.navigate('ShowDetail', { imdbID: item.imdbID })
-            }
-          />
-        )}
-      />
+      {loading ? (
+        <LoadingSpinner />
+      ) : !selectedGenre ? (
+        <EmptyState
+          message="Pick a genre"
+          subMessage="Tap a genre above to see the top shows"
+        />
+      ) : shows.length === 0 ? (
+        <EmptyState
+          message="No results"
+          subMessage={`Couldn't load shows for ${selectedGenre}`}
+        />
+      ) : (
+        <FlatList
+          data={shows}
+          keyExtractor={(item) => item.imdbID}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          renderItem={({ item }) => {
+            const badgeInfo = getBadge(item.imdbID);
+            const alreadyInAList = listMap.has(item.imdbID) || addedIDs.has(item.imdbID);
+            return (
+              <ShowCard
+                show={item}
+                onPress={() =>
+                  navigation.navigate('ShowDetail', { imdbID: item.imdbID })
+                }
+                onAddToWatch={
+                  alreadyInAList ? undefined : () => handleAddToWatch(item)
+                }
+                badge={badgeInfo?.badge}
+                badgeColor={badgeInfo?.badgeColor}
+              />
+            );
+          }}
+        />
+      )}
     </View>
   );
 }

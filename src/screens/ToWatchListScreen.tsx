@@ -2,33 +2,28 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, FlatList, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { HistoryStackParamList, WatchedShow } from '../types';
-import { getAllWatchedShows, removeWatchedShow, moveToWatching } from '../db/database';
-import ShowCard from '../components/ShowCard';
-import { dataEvents } from '../events/dataEvents';
+import type { ToWatchStackParamList, ToWatchShow } from '../types';
+import {
+  getAllToWatchShows,
+  removeToWatchShow,
+  moveToWatchToWatching,
+} from '../db/database';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ShowCard from '../components/ShowCard';
+import { dataEvents } from '../events/dataEvents';
 
-type Nav = NativeStackNavigationProp<HistoryStackParamList, 'HistoryList'>;
+type Nav = NativeStackNavigationProp<ToWatchStackParamList, 'ToWatchList'>;
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-export default function HistoryListScreen() {
+export default function ToWatchListScreen() {
   const navigation = useNavigation<Nav>();
-  const [shows, setShows] = useState<WatchedShow[]>([]);
+  const [shows, setShows] = useState<ToWatchShow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadShows = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getAllWatchedShows();
+      const data = await getAllToWatchShows();
       setShows(data);
     } finally {
       setLoading(false);
@@ -41,19 +36,18 @@ export default function HistoryListScreen() {
     }, [loadShows])
   );
 
-  // Re-fetch when a remote sync event modifies the data
   useEffect(() => dataEvents.subscribe(loadShows), [loadShows]);
 
-  function handleRewatch(show: WatchedShow) {
+  function handleMoveToWatching(show: ToWatchShow) {
     Alert.alert(
-      'Watch Again?',
-      `Move "${show.title}" back to your watchlist?`,
+      'Start Watching?',
+      `Move "${show.title}" to your Watch List?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Watch Again',
+          text: 'Start Watching',
           onPress: async () => {
-            await moveToWatching(show.imdbID);
+            await moveToWatchToWatching(show.imdbID);
             setShows((prev) => prev.filter((s) => s.imdbID !== show.imdbID));
           },
         },
@@ -61,17 +55,17 @@ export default function HistoryListScreen() {
     );
   }
 
-  function handleRemove(show: WatchedShow) {
+  function handleRemove(show: ToWatchShow) {
     Alert.alert(
       'Remove Show?',
-      `Remove "${show.title}" from your history?`,
+      `Remove "${show.title}" from your To Watch list?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Remove',
           style: 'destructive',
           onPress: async () => {
-            await removeWatchedShow(show.imdbID);
+            await removeToWatchShow(show.imdbID);
             setShows((prev) => prev.filter((s) => s.imdbID !== show.imdbID));
           },
         },
@@ -84,8 +78,8 @@ export default function HistoryListScreen() {
   if (shows.length === 0) {
     return (
       <EmptyState
-        message="No watch history yet"
-        subMessage='Mark a show as "Finished" to see it here'
+        message="Nothing queued up"
+        subMessage="Add shows from Search or For You to build your To Watch list"
       />
     );
   }
@@ -102,10 +96,7 @@ export default function HistoryListScreen() {
             onPress={() =>
               navigation.navigate('ShowDetail', { imdbID: item.imdbID })
             }
-            subtitle={`Watched: ${formatDate(item.finishedAt)}`}
-            badge="Watched"
-            badgeColor="bg-emerald-700"
-            onRewatch={() => handleRewatch(item)}
+            onStartWatching={() => handleMoveToWatching(item)}
             onRemove={() => handleRemove(item)}
           />
         )}
