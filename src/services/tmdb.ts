@@ -1,4 +1,4 @@
-import type { Show } from '../types';
+import type { ReleaseStatus, Show } from '../types';
 import { getTmdbApiKey } from './tmdbApiKey';
 
 const BASE_URL = 'https://api.themoviedb.org/3';
@@ -55,6 +55,13 @@ interface TmdbShow {
   number_of_seasons?: number;
 }
 
+interface TmdbEpisode {
+  air_date: string | null;
+  episode_number: number;
+  name: string;
+  season_number: number;
+}
+
 interface TmdbListResponse {
   results: TmdbShow[];
 }
@@ -75,6 +82,9 @@ interface TmdbShowDetailResponse extends TmdbShow {
   external_ids?: TmdbExternalIds;
   credits?: TmdbCreditsResponse;
   seasons?: TmdbSeason[];
+  next_episode_to_air?: TmdbEpisode | null;
+  last_episode_to_air?: TmdbEpisode | null;
+  status?: string;
 }
 
 // Reverse map: TMDB genre ID → label string
@@ -168,6 +178,50 @@ export async function getSeasonEpisodeCounts(
   return Array.from({ length: totalSeasons }, (_, index) => seasonMap.get(index + 1) ?? 0);
 }
 
+export async function getReleaseStatus(
+  imdbID: string,
+  currentSeason: number,
+  currentEpisode: number
+): Promise<ReleaseStatus> {
+  const tmdbID = await getTmdbIdFromImdbID(imdbID);
+  const apiKey = await getTmdbApiKey();
+  const params = new URLSearchParams({
+    api_key: apiKey,
+    language: 'en-US',
+  });
+
+  const res = await fetch(`${BASE_URL}/tv/${tmdbID}?${params}`);
+  if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
+
+  const detail: TmdbShowDetailResponse = await res.json();
+  const nextEpisode = detail.next_episode_to_air;
+  if (!nextEpisode?.air_date) {
+    const ended = detail.status === 'Ended' || detail.status === 'Canceled';
+    return {
+      statusLabel: ended ? 'No upcoming episodes' : 'Release date unavailable',
+      statusTone: ended ? 'ended' : 'upcoming',
+      isAvailableNow: false,
+    };
+  }
+
+  const nextEpisodeOrderReached =
+    nextEpisode.season_number < currentSeason ||
+    (nextEpisode.season_number === currentSeason && nextEpisode.episode_number <= currentEpisode);
+
+  const airDate = nextEpisode.air_date;
+  const availableNow = !nextEpisodeOrderReached && isDateTodayOrEarlier(airDate);
+
+  return {
+    nextEpisodeName: nextEpisode.name,
+    nextEpisodeSeason: nextEpisode.season_number,
+    nextEpisodeNumber: nextEpisode.episode_number,
+    nextEpisodeAirDate: airDate,
+    statusLabel: availableNow ? 'New episode available' : formatAirDateLabel(airDate),
+    statusTone: availableNow ? 'available' : 'upcoming',
+    isAvailableNow: availableNow,
+  };
+}
+
 async function getTmdbIdFromImdbID(imdbID: string): Promise<number> {
   const apiKey = await getTmdbApiKey();
   const params = new URLSearchParams({
@@ -229,4 +283,24 @@ function mapShow(tmdb: TmdbShowDetailResponse | TmdbShow, imdbID: string, genreL
     plot: tmdb.overview || undefined,
     actors,
   };
+}
+
+function isDateTodayOrEarlier(isoDate: string): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${isoDate}T00:00:00`);
+  return target.getTime() <= today.getTime();
+}
+
+function formatAirDateLabel(isoDate: string): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${isoDate}T00:00:00`);
+  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
+
+  if (diffDays === 0) return 'Airs today';
+  if (diffDays === 1) return 'Airs tomorrow';
+  if (diffDays > 1) return `Airs in ${diffDays} days`;
+  if (diffDays === -1) return 'Aired yesterday';
+  return `Aired ${Math.abs(diffDays)} days ago`;
 }

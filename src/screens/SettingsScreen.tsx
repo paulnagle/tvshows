@@ -11,6 +11,8 @@ import {
 import { exportBackup, importBackup } from '../services/backup';
 import { dataEvents } from '../events/dataEvents';
 import { getTmdbApiKey, setTmdbApiKey, deleteTmdbApiKey } from '../services/tmdbApiKey';
+import { getReleaseAlertsEnabled, setReleaseAlertsEnabled } from '../services/releaseAlerts';
+import { requestReleaseAlertPermissions } from '../services/releaseTracking';
 
 export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
@@ -21,12 +23,14 @@ export default function SettingsScreen() {
   const [savedKey, setSavedKey] = useState('');
   const [savingKey, setSavingKey] = useState(false);
   const [keyVisible, setKeyVisible] = useState(false);
+  const [releaseAlertsEnabled, setReleaseAlertsEnabledState] = useState(false);
 
   useEffect(() => {
     getTmdbApiKey().then((key) => {
       setSavedKey(key);
       setApiKey(key);
     });
+    getReleaseAlertsEnabled().then(setReleaseAlertsEnabledState);
   }, []);
 
   async function handleSaveKey() {
@@ -89,6 +93,20 @@ export default function SettingsScreen() {
     );
   }
 
+  async function handleToggleReleaseAlerts() {
+    const nextValue = !releaseAlertsEnabled;
+    if (nextValue) {
+      const granted = await requestReleaseAlertPermissions();
+      if (!granted) {
+        Alert.alert('Permission Needed', 'Enable notifications to receive new episode alerts.');
+        return;
+      }
+    }
+
+    await setReleaseAlertsEnabled(nextValue);
+    setReleaseAlertsEnabledState(nextValue);
+  }
+
   return (
     <ScrollView className="flex-1 bg-[#0f172a]" contentContainerStyle={{ padding: 20 }}>
 
@@ -145,6 +163,29 @@ export default function SettingsScreen() {
       ) : (
         <Text className="text-[#f59e0b] text-xs mb-6">⚠ No API key — searches will fail</Text>
       )}
+
+      <Text className="text-[#94a3b8] text-xs font-semibold uppercase tracking-widest mb-3">
+        Alerts
+      </Text>
+
+      <View className="bg-[#1e293b] rounded-xl overflow-hidden mb-6">
+        <TouchableOpacity
+          onPress={handleToggleReleaseAlerts}
+          className="flex-row items-center justify-between px-4 py-4 active:opacity-70"
+        >
+          <View className="flex-1 pr-3">
+            <Text className="text-[#f1f5f9] text-base font-medium">New Episode Alerts</Text>
+            <Text className="text-[#64748b] text-sm mt-0.5">
+              Send a local notification when a tracked show has a newly available episode
+            </Text>
+          </View>
+          <View className={`rounded-full px-3 py-1 ${releaseAlertsEnabled ? 'bg-emerald-900' : 'bg-[#0f172a]'}`}>
+            <Text className={`text-xs font-semibold ${releaseAlertsEnabled ? 'text-emerald-300' : 'text-[#94a3b8]'}`}>
+              {releaseAlertsEnabled ? 'On' : 'Off'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
       {/* ── Backup section ── */}
       <Text className="text-[#94a3b8] text-xs font-semibold uppercase tracking-widest mb-3">

@@ -11,6 +11,16 @@ export interface Show {
   actors?: string;       // comma-separated cast list
 }
 
+export interface ReleaseStatus {
+  nextEpisodeName?: string;
+  nextEpisodeSeason?: number;
+  nextEpisodeNumber?: number;
+  nextEpisodeAirDate?: string;
+  statusLabel: string;
+  statusTone: 'available' | 'upcoming' | 'ended';
+  isAvailableNow: boolean;
+}
+
 // ─── Currently watching ───────────────────────────────────────────────────────
 export interface CurrentShow extends Show {
   id: number;

@@ -6,7 +6,7 @@ import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
-import type { WatchingStackParamList, CurrentShow } from '../types';
+import type { WatchingStackParamList, CurrentShow, ReleaseStatus } from '../types';
 import {
   getAllCurrentShows,
   updateEpisodeProgress,
@@ -15,6 +15,13 @@ import {
   updateShowOrder,
 } from '../db/database';
 import { getSeasonEpisodeCounts } from '../services/tmdb';
+import {
+  getReleaseBadgeColor,
+  getReleaseSubtitle,
+  loadReleaseStatuses,
+  notifyForNewEpisodes,
+} from '../services/releaseTracking';
+import { getReleaseAlertsEnabled } from '../services/releaseAlerts';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ShowCard from '../components/ShowCard';
@@ -29,6 +36,7 @@ export default function WatchingListScreen() {
   const navigation = useNavigation<Nav>();
   const [shows, setShows] = useState<CurrentShow[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<EpisodeCountMap>({});
+  const [releaseStatuses, setReleaseStatuses] = useState<Record<string, ReleaseStatus>>({});
   const [loading, setLoading] = useState(true);
 
   const loadShows = useCallback(async () => {
@@ -50,6 +58,11 @@ export default function WatchingListScreen() {
         })
       );
       setEpisodeCounts(Object.fromEntries(entries));
+
+      const nextReleaseStatuses = await loadReleaseStatuses(data);
+      setReleaseStatuses(nextReleaseStatuses);
+      const alertsEnabled = await getReleaseAlertsEnabled();
+      await notifyForNewEpisodes(data, nextReleaseStatuses, alertsEnabled);
     } finally {
       setLoading(false);
     }
@@ -175,8 +188,9 @@ export default function WatchingListScreen() {
             onPress={() =>
               navigation.navigate('ShowDetail', { imdbID: item.imdbID })
             }
-            badge={`▶ S${item.currentSeason}E${item.currentEpisode}`}
-            badgeColor="bg-[#6366f1]"
+            subtitle={getReleaseSubtitle(releaseStatuses[item.imdbID])}
+            badge={releaseStatuses[item.imdbID]?.isAvailableNow ? 'New Episode' : `▶ S${item.currentSeason}E${item.currentEpisode}`}
+            badgeColor={releaseStatuses[item.imdbID]?.isAvailableNow ? getReleaseBadgeColor(releaseStatuses[item.imdbID]) : 'bg-[#6366f1]'}
             controls={{
               onPrevEpisode: () => handlePrevEpisode(item),
               onNextEpisode: () => handleNextEpisode(item),
@@ -196,7 +210,7 @@ export default function WatchingListScreen() {
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [episodeCounts, navigation]
+    [episodeCounts, navigation, releaseStatuses]
   );
 
   if (loading) return <LoadingSpinner />;

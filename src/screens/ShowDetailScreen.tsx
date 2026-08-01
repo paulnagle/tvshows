@@ -14,8 +14,9 @@ import type {
   WatchingStackParamList,
   HistoryStackParamList,
   RecommendationsStackParamList,
+  ReleaseStatus,
 } from '../types';
-import { getShowDetails, getSeasonEpisodeCounts } from '../services/tmdb';
+import { getShowDetails, getSeasonEpisodeCounts, getReleaseStatus } from '../services/tmdb';
 import {
   addCurrentShow,
   isCurrentShow,
@@ -46,6 +47,7 @@ export default function ShowDetailScreen() {
   const [alreadyToWatch, setAlreadyToWatch] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addingToWatch, setAddingToWatch] = useState(false);
+  const [releaseStatus, setReleaseStatus] = useState<ReleaseStatus | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -60,6 +62,9 @@ export default function ShowDetailScreen() {
         setAlreadyWatching(watching);
         setAlreadyWatched(watched);
         setAlreadyToWatch(toWatch);
+
+        const release = await getReleaseStatus(imdbID, 1, 0).catch(() => null);
+        setReleaseStatus(release);
 
         // Fetch episode counts per season if we know how many seasons there are
         const total = parseInt(detail.totalSeasons, 10);
@@ -160,6 +165,32 @@ export default function ShowDetailScreen() {
            </Text>
            <Text className="text-[#94a3b8] text-base ml-1">/ 10 (IMDB)</Text>
          </View>
+
+        {releaseStatus && (
+          <View className={`mt-4 rounded-xl px-4 py-3 border ${
+            releaseStatus.statusTone === 'available'
+              ? 'bg-emerald-950 border-emerald-800'
+              : releaseStatus.statusTone === 'ended'
+              ? 'bg-[#1e293b] border-[#334155]'
+              : 'bg-violet-950 border-violet-800'
+          }`}>
+            <Text className={`text-sm font-semibold ${
+              releaseStatus.statusTone === 'available'
+                ? 'text-emerald-300'
+                : releaseStatus.statusTone === 'ended'
+                ? 'text-[#cbd5e1]'
+                : 'text-violet-300'
+            }`}>
+              {releaseStatus.isAvailableNow ? 'New episode available' : releaseStatus.statusLabel}
+            </Text>
+            {releaseStatus.nextEpisodeSeason && releaseStatus.nextEpisodeNumber ? (
+              <Text className="text-[#cbd5e1] text-sm mt-1">
+                Next up: S{releaseStatus.nextEpisodeSeason}E{releaseStatus.nextEpisodeNumber}
+                {releaseStatus.nextEpisodeName ? ` · ${releaseStatus.nextEpisodeName}` : ''}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {/* Seasons & episode counts */}
         {show.totalSeasons !== 'N/A' && (
