@@ -78,18 +78,21 @@ export default function AppNavigator() {
           tabBarStyle: {
             backgroundColor: '#1e293b',
             borderTopColor: '#334155',
+            height: 64,
+            paddingBottom: 10,
+            paddingTop: 8,
           },
           tabBarActiveTintColor: '#6366f1',
           tabBarInactiveTintColor: '#94a3b8',
           tabBarLabel: ({ color }) => {
             const labels: Record<string, string> = {
-              Watching: '📺 Watching',
+              Watching: '📺 WatchList',
               History: '✅ History',
               Recommendations: '💡 For You',
               Search: '🔍 Search',
             };
             return (
-              <Text style={{ color, fontSize: 10, marginBottom: 2 }}>
+              <Text style={{ color, fontSize: 14, fontWeight: '500' }}>
                 {labels[route.name] ?? route.name}
               </Text>
             );

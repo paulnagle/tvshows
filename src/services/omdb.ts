@@ -26,8 +26,17 @@ interface OmdbDetailResponse {
   Genre: string;
   imdbRating: string;
   totalSeasons?: string;
+  Plot?: string;
+  Actors?: string;
   Response: 'True' | 'False';
   Error?: string;
+}
+
+interface OmdbSeasonResponse {
+  Season: string;
+  totalSeasons: string;
+  Episodes: Array<{ Episode: string }>;
+  Response: 'True' | 'False';
 }
 
 // ─── Mapping helpers ──────────────────────────────────────────────────────────
@@ -57,6 +66,8 @@ function mapDetail(detail: OmdbDetailResponse): Show {
     genre: mapGenre(detail.Genre),
     imdbRating: detail.imdbRating ?? 'N/A',
     totalSeasons: detail.totalSeasons ?? 'N/A',
+    plot: detail.Plot !== 'N/A' ? detail.Plot : undefined,
+    actors: detail.Actors !== 'N/A' ? detail.Actors : undefined,
   };
 }
 
@@ -84,4 +95,20 @@ export async function getShowDetails(imdbID: string): Promise<Show> {
     throw new Error(data.Error ?? 'Show not found');
   }
   return mapDetail(data);
+}
+
+// Returns an array where index 0 = season 1 episode count, index 1 = season 2, etc.
+export async function getSeasonEpisodeCounts(
+  imdbID: string,
+  totalSeasons: number
+): Promise<number[]> {
+  const requests = Array.from({ length: totalSeasons }, (_, i) =>
+    fetch(`${BASE_URL}?apikey=${API_KEY}&i=${imdbID}&Season=${i + 1}`)
+      .then((r) => r.json() as Promise<OmdbSeasonResponse>)
+      .then((data) =>
+        data.Response === 'True' ? data.Episodes.length : 0
+      )
+      .catch(() => 0)
+  );
+  return Promise.all(requests);
 }

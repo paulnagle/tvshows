@@ -14,7 +14,7 @@ export default function EmptyState({ message, subMessage }: EmptyStateProps) {
         {message}
       </Text>
       {subMessage ? (
-        <Text className="text-[#94a3b8] text-sm text-center">{subMessage}</Text>
+        <Text className="text-[#94a3b8] text-base text-center">{subMessage}</Text>
       ) : null}
     </View>
   );

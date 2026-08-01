@@ -15,7 +15,7 @@ import type {
   HistoryStackParamList,
   RecommendationsStackParamList,
 } from '../types';
-import { getShowDetails } from '../services/omdb';
+import { getShowDetails, getSeasonEpisodeCounts } from '../services/omdb';
 import {
   addCurrentShow,
   isCurrentShow,
@@ -36,6 +36,7 @@ export default function ShowDetailScreen() {
   const { imdbID } = route.params;
 
   const [show, setShow] = useState<Show | null>(null);
+  const [episodeCounts, setEpisodeCounts] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [alreadyWatching, setAlreadyWatching] = useState(false);
@@ -53,6 +54,13 @@ export default function ShowDetailScreen() {
         setShow(detail);
         setAlreadyWatching(watching);
         setAlreadyWatched(watched);
+
+        // Fetch episode counts per season if we know how many seasons there are
+        const total = parseInt(detail.totalSeasons, 10);
+        if (!isNaN(total) && total > 0) {
+          const counts = await getSeasonEpisodeCounts(imdbID, total);
+          setEpisodeCounts(counts);
+        }
       } catch {
         setError('Failed to load show details.');
       } finally {
@@ -116,41 +124,76 @@ export default function ShowDetailScreen() {
       <View className="px-5 pt-5">
         {/* Title & year */}
         <Text className="text-[#f1f5f9] text-2xl font-bold">{show.title}</Text>
-        <Text className="text-[#94a3b8] text-sm mt-1">{show.year}</Text>
+        <Text className="text-[#94a3b8] text-base mt-1">{show.year}</Text>
 
         {/* IMDB rating */}
         {show.imdbRating !== 'N/A' && (
           <View className="flex-row items-center mt-3">
-            <Text className="text-yellow-400 text-lg">⭐</Text>
-            <Text className="text-[#f1f5f9] text-xl font-bold ml-1">
+            <Text className="text-yellow-400 text-xl">⭐</Text>
+            <Text className="text-[#f1f5f9] text-2xl font-bold ml-1">
               {show.imdbRating}
             </Text>
-            <Text className="text-[#94a3b8] text-sm ml-1">/ 10 (IMDB)</Text>
+            <Text className="text-[#94a3b8] text-base ml-1">/ 10 (IMDB)</Text>
           </View>
         )}
 
-        {/* Seasons */}
+        {/* Seasons & episode counts */}
         {show.totalSeasons !== 'N/A' && (
-          <Text className="text-[#94a3b8] text-sm mt-2">
-            {show.totalSeasons} Season{Number(show.totalSeasons) !== 1 ? 's' : ''}
-          </Text>
+          <View className="mt-3">
+            <Text className="text-[#94a3b8] text-base font-semibold mb-2">
+              {show.totalSeasons} Season{Number(show.totalSeasons) !== 1 ? 's' : ''}
+            </Text>
+            {episodeCounts.length > 0 && (
+              <View className="flex-row flex-wrap gap-2">
+                {episodeCounts.map((count, i) => (
+                  <View
+                    key={i}
+                    className="bg-[#1e293b] border border-[#334155] rounded-lg px-3 py-1.5"
+                  >
+                    <Text className="text-[#f1f5f9] text-xs font-semibold">
+                      S{i + 1}
+                    </Text>
+                    <Text className="text-[#94a3b8] text-xs">
+                      {count} ep{count !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
         )}
 
         {/* Genre tags */}
         {show.genre.length > 0 && (
           <View className="flex-row flex-wrap mt-3 gap-2">
             {show.genre.map((g) => (
-              <View key={g} className="bg-[#1e293b] border border-[#334155] rounded-full px-3 py-1">
-                <Text className="text-[#94a3b8] text-xs">{g}</Text>
+              <View key={g} className="bg-[#1e293b] border border-[#334155] rounded-full px-3 py-1.5">
+                <Text className="text-[#94a3b8] text-sm">{g}</Text>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* Plot summary */}
+        {show.plot && (
+          <View className="mt-4">
+            <Text className="text-[#f1f5f9] text-sm font-semibold mb-1">About</Text>
+            <Text className="text-[#94a3b8] text-sm leading-5">{show.plot}</Text>
+          </View>
+        )}
+
+        {/* Cast */}
+        {show.actors && (
+          <View className="mt-4">
+            <Text className="text-[#f1f5f9] text-sm font-semibold mb-1">Starring</Text>
+            <Text className="text-[#94a3b8] text-sm leading-5">{show.actors}</Text>
           </View>
         )}
 
         {/* Status badges */}
         {alreadyWatched && (
           <View className="mt-4 bg-emerald-900 border border-emerald-700 rounded-xl px-4 py-2 self-start">
-            <Text className="text-emerald-300 text-sm font-semibold">✓ Previously Watched</Text>
+            <Text className="text-emerald-300 text-base font-semibold">✓ Previously Watched</Text>
           </View>
         )}
 

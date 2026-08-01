@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, FlatList } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HistoryStackParamList, WatchedShow } from '../types';
 import { getAllWatchedShows } from '../db/database';
 import ShowCard from '../components/ShowCard';
+import { dataEvents } from '../events/dataEvents';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -39,6 +40,9 @@ export default function HistoryListScreen() {
       loadShows();
     }, [loadShows])
   );
+
+  // Re-fetch when a remote sync event modifies the data
+  useEffect(() => dataEvents.subscribe(loadShows), [loadShows]);
 
   if (loading) return <LoadingSpinner />;
 

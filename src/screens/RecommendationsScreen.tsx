@@ -79,13 +79,13 @@ export default function RecommendationsScreen() {
     <View className="flex-1 bg-[#0f172a]">
       {/* Genre pills */}
       <View className="px-4 pt-4 pb-2 flex-row flex-wrap gap-2">
-        <Text className="text-[#94a3b8] text-xs self-center">Based on: </Text>
+        <Text className="text-[#94a3b8] text-sm self-center">Based on: </Text>
         {topGenres.map((g) => (
           <View
             key={g}
-            className="bg-[#6366f1]/20 border border-[#6366f1]/40 rounded-full px-3 py-0.5"
+            className="bg-[#6366f1]/20 border border-[#6366f1]/40 rounded-full px-3 py-1"
           >
-            <Text className="text-[#6366f1] text-xs font-semibold">{g}</Text>
+            <Text className="text-[#6366f1] text-sm font-semibold">{g}</Text>
           </View>
         ))}
       </View>

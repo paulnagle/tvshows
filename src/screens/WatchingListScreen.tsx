@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, FlatList, Text, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, FlatList, Alert, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { WatchingStackParamList, CurrentShow } from '../types';
@@ -8,22 +8,66 @@ import {
   updateEpisodeProgress,
   moveToWatched,
 } from '../db/database';
+import { getSeasonEpisodeCounts } from '../services/omdb';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ShowCard from '../components/ShowCard';
+import { dataEvents } from '../events/dataEvents';
+import { subscribePeerCount } from '../services/sync';
 
 type Nav = NativeStackNavigationProp<WatchingStackParamList, 'WatchingList'>;
+
+// imdbID -> array where index 0 = season 1 episode count, etc.
+type EpisodeCountMap = Record<string, number[]>;
 
 export default function WatchingListScreen() {
   const navigation = useNavigation<Nav>();
   const [shows, setShows] = useState<CurrentShow[]>([]);
+  const [episodeCounts, setEpisodeCounts] = useState<EpisodeCountMap>({});
   const [loading, setLoading] = useState(true);
+  const [peerCount, setPeerCount] = useState(0);
+
+  // Subscribe to peer count changes and update the header indicator
+  useEffect(() => {
+    return subscribePeerCount((count) => setPeerCount(count));
+  }, []);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={{ marginRight: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: peerCount > 0 ? '#22c55e' : '#475569',
+            }}
+          />
+          <Text style={{ color: peerCount > 0 ? '#22c55e' : '#94a3b8', fontSize: 12 }}>
+            {peerCount > 0 ? `${peerCount} peer${peerCount > 1 ? 's' : ''}` : 'No peers'}
+          </Text>
+        </View>
+      ),
+    });
+  }, [navigation, peerCount]);
 
   const loadShows = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getAllCurrentShows();
       setShows(data);
+
+      // Fetch episode counts for every show that has a known season count
+      const entries = await Promise.all(
+        data.map(async (show) => {
+          const total = parseInt(show.totalSeasons, 10);
+          if (isNaN(total) || total <= 0) return [show.imdbID, []] as const;
+          const counts = await getSeasonEpisodeCounts(show.imdbID, total);
+          return [show.imdbID, counts] as const;
+        })
+      );
+      setEpisodeCounts(Object.fromEntries(entries));
     } finally {
       setLoading(false);
     }
@@ -35,7 +79,14 @@ export default function WatchingListScreen() {
     }, [loadShows])
   );
 
+  // Re-fetch when a remote sync event modifies the data
+  useEffect(() => dataEvents.subscribe(loadShows), [loadShows]);
+
   async function handleNextEpisode(show: CurrentShow) {
+    const counts = episodeCounts[show.imdbID] ?? [];
+    const rawMax = counts[show.currentSeason - 1];
+    const maxEpisode = rawMax != null && rawMax > 0 ? rawMax : Infinity;
+    if (show.currentEpisode >= maxEpisode) return;
     const nextEpisode = show.currentEpisode + 1;
     await updateEpisodeProgress(show.imdbID, show.currentSeason, nextEpisode);
     setShows((prev) =>
@@ -45,13 +96,41 @@ export default function WatchingListScreen() {
     );
   }
 
+  async function handlePrevEpisode(show: CurrentShow) {
+    if (show.currentEpisode <= 1) return;
+    const prevEpisode = show.currentEpisode - 1;
+    await updateEpisodeProgress(show.imdbID, show.currentSeason, prevEpisode);
+    setShows((prev) =>
+      prev.map((s) =>
+        s.imdbID === show.imdbID ? { ...s, currentEpisode: prevEpisode } : s
+      )
+    );
+  }
+
   async function handleNextSeason(show: CurrentShow) {
+    const totalSeasons = parseInt(show.totalSeasons, 10);
+    if (!isNaN(totalSeasons) && show.currentSeason >= totalSeasons) return;
     const nextSeason = show.currentSeason + 1;
     await updateEpisodeProgress(show.imdbID, nextSeason, 1);
     setShows((prev) =>
       prev.map((s) =>
         s.imdbID === show.imdbID
           ? { ...s, currentSeason: nextSeason, currentEpisode: 1 }
+          : s
+      )
+    );
+  }
+
+  async function handlePrevSeason(show: CurrentShow) {
+    if (show.currentSeason <= 1) return;
+    const prevSeason = show.currentSeason - 1;
+    const counts = episodeCounts[show.imdbID] ?? [];
+    const lastEpisode = counts[prevSeason - 1] ?? 1;
+    await updateEpisodeProgress(show.imdbID, prevSeason, lastEpisode);
+    setShows((prev) =>
+      prev.map((s) =>
+        s.imdbID === show.imdbID
+          ? { ...s, currentSeason: prevSeason, currentEpisode: lastEpisode }
           : s
       )
     );
@@ -92,42 +171,33 @@ export default function WatchingListScreen() {
         data={shows}
         keyExtractor={(item) => item.imdbID}
         contentContainerStyle={{ paddingTop: 12, paddingBottom: 20 }}
-        renderItem={({ item }) => (
-          <View>
+        renderItem={({ item }) => {
+          const counts = episodeCounts[item.imdbID] ?? [];
+          const rawMax = counts[item.currentSeason - 1];
+          const maxEpisode = rawMax != null && rawMax > 0 ? rawMax : Infinity;
+          const totalSeasons = parseInt(item.totalSeasons, 10);
+          return (
             <ShowCard
               show={item}
               onPress={() =>
                 navigation.navigate('ShowDetail', { imdbID: item.imdbID })
               }
-              badge={`S${item.currentSeason}E${item.currentEpisode}`}
+              badge={`▶ S${item.currentSeason}E${item.currentEpisode}`}
               badgeColor="bg-[#6366f1]"
+              controls={{
+                onPrevEpisode: () => handlePrevEpisode(item),
+                onNextEpisode: () => handleNextEpisode(item),
+                onPrevSeason: () => handlePrevSeason(item),
+                onNextSeason: () => handleNextSeason(item),
+                onFinished: () => handleFinished(item),
+                episodeAtStart: item.currentEpisode <= 1,
+                episodeDone: isFinite(maxEpisode) && item.currentEpisode >= maxEpisode,
+                seasonAtStart: item.currentSeason <= 1,
+                seasonDone: !isNaN(totalSeasons) && item.currentSeason >= totalSeasons,
+              }}
             />
-            {/* Episode controls */}
-            <View className="flex-row mx-4 -mt-1 mb-3 gap-2">
-              <TouchableOpacity
-                onPress={() => handleNextEpisode(item)}
-                className="flex-1 bg-[#1e293b] border border-[#334155] rounded-lg py-2 items-center"
-                activeOpacity={0.7}
-              >
-                <Text className="text-[#94a3b8] text-xs font-semibold">+ Episode</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleNextSeason(item)}
-                className="flex-1 bg-[#1e293b] border border-[#334155] rounded-lg py-2 items-center"
-                activeOpacity={0.7}
-              >
-                <Text className="text-[#94a3b8] text-xs font-semibold">+ Season</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleFinished(item)}
-                className="flex-1 bg-emerald-900 border border-emerald-700 rounded-lg py-2 items-center"
-                activeOpacity={0.7}
-              >
-                <Text className="text-emerald-300 text-xs font-semibold">Finished ✓</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+          );
+        }}
       />
     </View>
   );

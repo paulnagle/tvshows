@@ -80,7 +80,7 @@ export default function SearchScreen() {
         <LoadingSpinner />
       ) : error ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-red-400 text-center">{error}</Text>
+          <Text className="text-red-400 text-center text-base">{error}</Text>
         </View>
       ) : !hasSearched ? (
         <EmptyState

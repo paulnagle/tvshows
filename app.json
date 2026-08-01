@@ -9,7 +9,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "xyz.paulnagle.tvshows",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,6 +25,9 @@
         "projectId": "9f4b60c1-35dd-4ff8-a6f0-6306aa0a6d98"
       }
     },
-    "owner": "paulnagles-team"
+    "owner": "paulnagles-team",
+    "android": {
+      "package": "xyz.paulnagle.tvshows"
+    }
   }
 }
