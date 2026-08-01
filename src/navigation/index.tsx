@@ -26,7 +26,7 @@ const WatchingStack = createNativeStackNavigator<WatchingStackParamList>();
 function WatchingNavigator() {
   return (
     <WatchingStack.Navigator screenOptions={stackScreenOptions}>
-      <WatchingStack.Screen name="WatchingList" component={WatchingListScreen} options={{ title: 'Watching' }} />
+      <WatchingStack.Screen name="WatchingList" component={WatchingListScreen} options={{ title: 'Currently Watching' }} />
       <WatchingStack.Screen name="ShowDetail" component={ShowDetailScreen} options={{ title: '' }} />
     </WatchingStack.Navigator>
   );
@@ -75,7 +75,7 @@ const ToWatchStack = createNativeStackNavigator<ToWatchStackParamList>();
 function ToWatchNavigator() {
   return (
     <ToWatchStack.Navigator screenOptions={stackScreenOptions}>
-      <ToWatchStack.Screen name="ToWatchList" component={ToWatchListScreen} options={{ title: 'To Watch' }} />
+      <ToWatchStack.Screen name="ToWatchList" component={ToWatchListScreen} options={{ title: 'Watch Next' }} />
       <ToWatchStack.Screen name="ShowDetail" component={ShowDetailScreen} options={{ title: '' }} />
     </ToWatchStack.Navigator>
   );

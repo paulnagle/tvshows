@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Alert, Text } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DraggableFlatList, {
@@ -19,7 +19,6 @@ import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ShowCard from '../components/ShowCard';
 import { dataEvents } from '../events/dataEvents';
-import { subscribePeerCount } from '../services/sync';
 
 type Nav = NativeStackNavigationProp<WatchingStackParamList, 'WatchingList'>;
 
@@ -31,32 +30,6 @@ export default function WatchingListScreen() {
   const [shows, setShows] = useState<CurrentShow[]>([]);
   const [episodeCounts, setEpisodeCounts] = useState<EpisodeCountMap>({});
   const [loading, setLoading] = useState(true);
-  const [peerCount, setPeerCount] = useState(0);
-
-  // Subscribe to peer count changes and update the header indicator
-  useEffect(() => {
-    return subscribePeerCount((count) => setPeerCount(count));
-  }, []);
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={{ marginRight: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: peerCount > 0 ? '#22c55e' : '#475569',
-            }}
-          />
-          <Text style={{ color: peerCount > 0 ? '#22c55e' : '#94a3b8', fontSize: 12 }}>
-            {peerCount > 0 ? `${peerCount} peer${peerCount > 1 ? 's' : ''}` : 'No peers'}
-          </Text>
-        </View>
-      ),
-    });
-  }, [navigation, peerCount]);
 
   const loadShows = useCallback(async () => {
     setShows((prev) => {

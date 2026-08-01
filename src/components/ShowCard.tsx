@@ -165,17 +165,25 @@ export default function ShowCard({
         </View>
       )}
 
-      {/* Watch Again + Remove row (history page — no controls, no To Watch actions) */}
-      {!controls && !onStartWatching && !onAddToWatch && (onRewatch || onRemove) && (
+      {/* Watch Again + Watch Next + Remove row (history page) */}
+      {!controls && onRewatch && (
         <View className="flex-row mt-2 gap-1.5">
-          {onRewatch && (
+          <TouchableOpacity
+            onPress={onRewatch}
+            className="bg-indigo-900 border border-indigo-700 rounded-md py-2 items-center"
+            style={{ flex: 3 }}
+            activeOpacity={0.7}
+          >
+            <Text className="text-indigo-300 text-xs font-semibold">▶ Watch Again</Text>
+          </TouchableOpacity>
+          {onAddToWatch && (
             <TouchableOpacity
-              onPress={onRewatch}
-              className="bg-indigo-900 border border-indigo-700 rounded-md py-2 items-center"
-              style={{ flex: 4 }}
+              onPress={onAddToWatch}
+              className="bg-[#1e3a5f] border border-[#2563eb] rounded-md py-2 items-center"
+              style={{ flex: 3 }}
               activeOpacity={0.7}
             >
-              <Text className="text-indigo-300 text-xs font-semibold">▶ Watch Again</Text>
+              <Text className="text-blue-300 text-xs font-semibold">+ Watch Next</Text>
             </TouchableOpacity>
           )}
           {onRemove && (
@@ -192,7 +200,7 @@ export default function ShowCard({
       )}
 
       {/* Start Watching + Remove row (To Watch page) */}
-      {!controls && (onStartWatching || onAddToWatch) && (
+      {!controls && !onRewatch && (onStartWatching || onAddToWatch) && (
         <View className="flex-row mt-2 gap-1.5">
           {onStartWatching && (
             <TouchableOpacity
@@ -222,7 +230,7 @@ export default function ShowCard({
               activeOpacity={0.7}
             >
               <Text className="text-blue-300 text-xs font-semibold">
-                {onStartWatching ? '✕' : '+ To Watch'}
+                {onStartWatching ? '✕' : '+ Watch Next'}
               </Text>
             </TouchableOpacity>
           )}

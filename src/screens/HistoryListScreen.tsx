@@ -3,7 +3,7 @@ import { View, FlatList, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HistoryStackParamList, WatchedShow } from '../types';
-import { getAllWatchedShows, removeWatchedShow, moveToWatching } from '../db/database';
+import { getAllWatchedShows, removeWatchedShow, moveToWatching, moveWatchedToToWatch } from '../db/database';
 import ShowCard from '../components/ShowCard';
 import { dataEvents } from '../events/dataEvents';
 import EmptyState from '../components/EmptyState';
@@ -61,6 +61,23 @@ export default function HistoryListScreen() {
     );
   }
 
+  function handleAddToWatch(show: WatchedShow) {
+    Alert.alert(
+      'Add to To Watch?',
+      `Add "${show.title}" to your To Watch list?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Add',
+          onPress: async () => {
+            await moveWatchedToToWatch(show.imdbID);
+            setShows((prev) => prev.filter((s) => s.imdbID !== show.imdbID));
+          },
+        },
+      ]
+    );
+  }
+
   function handleRemove(show: WatchedShow) {
     Alert.alert(
       'Remove Show?',
@@ -106,6 +123,7 @@ export default function HistoryListScreen() {
             badge="Watched"
             badgeColor="bg-emerald-700"
             onRewatch={() => handleRewatch(item)}
+            onAddToWatch={() => handleAddToWatch(item)}
             onRemove={() => handleRemove(item)}
           />
         )}
