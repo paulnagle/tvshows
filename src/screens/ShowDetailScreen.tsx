@@ -15,7 +15,7 @@ import type {
   HistoryStackParamList,
   RecommendationsStackParamList,
 } from '../types';
-import { getShowDetails, getSeasonEpisodeCounts } from '../services/omdb';
+import { getShowDetails, getSeasonEpisodeCounts } from '../services/tmdb';
 import {
   addCurrentShow,
   isCurrentShow,

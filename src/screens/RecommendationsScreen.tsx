@@ -3,7 +3,7 @@ import { View, FlatList, Text, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RecommendationsStackParamList, Show } from '../types';
-import { getShowsByGenre, OMDB_TOP_GENRES } from '../services/recommendations';
+import { getShowsByGenre, TOP_GENRES } from '../services/recommendations';
 import {
   addToWatchShow,
   getAllCurrentShows,
@@ -92,7 +92,7 @@ export default function RecommendationsScreen() {
       {/* Genre pills */}
       <View className="px-4 pt-4 pb-2">
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {OMDB_TOP_GENRES.map((g) => {
+          {TOP_GENRES.map((g) => {
             const active = g === selectedGenre;
             return (
               <TouchableOpacity

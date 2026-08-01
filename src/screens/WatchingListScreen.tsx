@@ -14,7 +14,7 @@ import {
   removeCurrentShow,
   updateShowOrder,
 } from '../db/database';
-import { getSeasonEpisodeCounts } from '../services/omdb';
+import { getSeasonEpisodeCounts } from '../services/tmdb';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ShowCard from '../components/ShowCard';

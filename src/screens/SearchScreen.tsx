@@ -10,7 +10,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { SearchStackParamList } from '../types';
-import { searchShows } from '../services/omdb';
+import { searchShows } from '../services/tmdb';
 import type { Show } from '../types';
 import {
   addToWatchShow,
@@ -94,13 +94,7 @@ export default function SearchScreen() {
         setHasSearched(true);
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to fetch results.';
-        // "Movie not found!" is OMDB's message for zero results — treat as empty, not error
-        if (msg === 'Movie not found!') {
-          setResults([]);
-          setHasSearched(true);
-        } else {
-          setError(msg);
-        }
+        setError(msg);
       } finally {
         setLoading(false);
       }

@@ -1,4 +1,4 @@
-// ─── Show data from OMDB ─────────────────────────────────────────────────────
+// ─── Show data from TMDB-backed lookups ──────────────────────────────────────
 export interface Show {
   imdbID: string;
   title: string;
