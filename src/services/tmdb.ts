@@ -1,6 +1,6 @@
 import type { Show } from '../types';
+import { getTmdbApiKey } from './tmdbApiKey';
 
-const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? '';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w300';
 
@@ -88,8 +88,9 @@ export async function getShowsByGenre(genre: string): Promise<Show[]> {
   if (!genreId) return [];
 
   const currentYear = new Date().getFullYear();
+  const apiKey = await getTmdbApiKey();
   const params = new URLSearchParams({
-    api_key: API_KEY,
+    api_key: apiKey,
     with_genres: String(genreId),
     sort_by: 'first_air_date.desc',
     'vote_average.gte': '6.5',
@@ -113,8 +114,9 @@ export async function getShowsByGenre(genre: string): Promise<Show[]> {
 export async function searchShows(query: string): Promise<Show[]> {
   if (!query.trim()) return [];
 
+  const apiKey = await getTmdbApiKey();
   const params = new URLSearchParams({
-    api_key: API_KEY,
+    api_key: apiKey,
     query,
     language: 'en-US',
     page: '1',
@@ -130,8 +132,9 @@ export async function searchShows(query: string): Promise<Show[]> {
 
 export async function getShowDetails(imdbID: string): Promise<Show> {
   const tmdbID = await getTmdbIdFromImdbID(imdbID);
+  const apiKey = await getTmdbApiKey();
   const params = new URLSearchParams({
-    api_key: API_KEY,
+    api_key: apiKey,
     language: 'en-US',
     append_to_response: 'external_ids,credits',
   });
@@ -148,8 +151,9 @@ export async function getSeasonEpisodeCounts(
   totalSeasons: number
 ): Promise<number[]> {
   const tmdbID = await getTmdbIdFromImdbID(imdbID);
+  const apiKey = await getTmdbApiKey();
   const params = new URLSearchParams({
-    api_key: API_KEY,
+    api_key: apiKey,
     language: 'en-US',
   });
 
@@ -165,8 +169,9 @@ export async function getSeasonEpisodeCounts(
 }
 
 async function getTmdbIdFromImdbID(imdbID: string): Promise<number> {
+  const apiKey = await getTmdbApiKey();
   const params = new URLSearchParams({
-    api_key: API_KEY,
+    api_key: apiKey,
     external_source: 'imdb_id',
   });
 
@@ -190,7 +195,8 @@ async function resolveShow(tmdb: TmdbShow, genreLabel?: string): Promise<Show | 
 }
 
 async function getExternalImdbId(tmdbID: number): Promise<string | null> {
-  const res = await fetch(`${BASE_URL}/tv/${tmdbID}/external_ids?api_key=${API_KEY}`);
+  const apiKey = await getTmdbApiKey();
+  const res = await fetch(`${BASE_URL}/tv/${tmdbID}/external_ids?api_key=${apiKey}`);
   if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
   const ext: TmdbExternalIds = await res.json();
   return ext.imdb_id;
