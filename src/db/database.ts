@@ -88,6 +88,34 @@ export async function initDatabase(): Promise<void> {
       `ALTER TABLE watched_shows ADD COLUMN lastEpisode INTEGER NOT NULL DEFAULT 1`
     );
   }
+
+  // Migration: add userRating to all three show tables if missing
+  const currentColsForRating = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(current_shows)`
+  );
+  if (!currentColsForRating.some((c) => c.name === 'userRating')) {
+    await db.execAsync(
+      `ALTER TABLE current_shows ADD COLUMN userRating INTEGER`
+    );
+  }
+
+  const watchedColsForRating = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(watched_shows)`
+  );
+  if (!watchedColsForRating.some((c) => c.name === 'userRating')) {
+    await db.execAsync(
+      `ALTER TABLE watched_shows ADD COLUMN userRating INTEGER`
+    );
+  }
+
+  const toWatchColsForRating = await db.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(to_watch_shows)`
+  );
+  if (!toWatchColsForRating.some((c) => c.name === 'userRating')) {
+    await db.execAsync(
+      `ALTER TABLE to_watch_shows ADD COLUMN userRating INTEGER`
+    );
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -161,6 +189,7 @@ export async function getAllCurrentShows(): Promise<CurrentShow[]> {
     currentSeason: r.currentSeason as number,
     currentEpisode: r.currentEpisode as number,
     addedAt: r.addedAt as string,
+    userRating: (r.userRating as number | null) ?? null,
   }));
 }
 
@@ -239,6 +268,7 @@ export async function getAllToWatchShows(): Promise<ToWatchShow[]> {
     imdbRating: r.imdbRating as string,
     totalSeasons: r.totalSeasons as string,
     addedAt: r.addedAt as string,
+    userRating: (r.userRating as number | null) ?? null,
   }));
 }
 
@@ -293,6 +323,7 @@ export async function getAllWatchedShows(): Promise<WatchedShow[]> {
     finishedAt: r.finishedAt as string,
     lastSeason: (r.lastSeason as number) ?? 1,
     lastEpisode: (r.lastEpisode as number) ?? 1,
+    userRating: (r.userRating as number | null) ?? null,
   }));
 }
 
@@ -364,6 +395,29 @@ export async function isWatchedShow(imdbID: string): Promise<boolean> {
   return (row?.count ?? 0) > 0;
 }
 
+// ─── User ratings ─────────────────────────────────────────────────────────────
+export async function getShowRating(imdbID: string): Promise<number | null> {
+  const tables = ['current_shows', 'watched_shows', 'to_watch_shows'] as const;
+  for (const table of tables) {
+    const row = await db.getFirstAsync<{ userRating: number | null }>(
+      `SELECT userRating FROM ${table} WHERE imdbID = ?`,
+      [imdbID]
+    );
+    if (row !== null) return row.userRating ?? null;
+  }
+  return null;
+}
+
+export async function updateShowRating(imdbID: string, rating: number | null): Promise<void> {
+  const tables = ['current_shows', 'watched_shows', 'to_watch_shows'] as const;
+  await Promise.all(
+    tables.map((table) =>
+      db.runAsync(`UPDATE ${table} SET userRating = ? WHERE imdbID = ?`, [rating, imdbID])
+    )
+  );
+}
+
+
 // ─── Hidden recommendations ───────────────────────────────────────────────────
 export async function addHiddenRecommendation(imdbID: string): Promise<void> {
   await db.runAsync(
@@ -395,12 +449,12 @@ export async function restoreBackup(
   for (const s of currentShows) {
     await db.runAsync(
       `INSERT OR REPLACE INTO current_shows
-        (imdbID, title, year, poster, genre, imdbRating, totalSeasons, currentSeason, currentEpisode, addedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (imdbID, title, year, poster, genre, imdbRating, totalSeasons, currentSeason, currentEpisode, addedAt, userRating)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         s.imdbID, s.title, s.year, s.poster,
         serializeGenre(s.genre), s.imdbRating, s.totalSeasons,
-        s.currentSeason, s.currentEpisode, s.addedAt,
+        s.currentSeason, s.currentEpisode, s.addedAt, s.userRating ?? null,
       ]
     );
     count++;
@@ -409,12 +463,12 @@ export async function restoreBackup(
   for (const w of watchedShows) {
     await db.runAsync(
       `INSERT OR REPLACE INTO watched_shows
-        (imdbID, title, year, poster, genre, imdbRating, totalSeasons, finishedAt, lastSeason, lastEpisode)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (imdbID, title, year, poster, genre, imdbRating, totalSeasons, finishedAt, lastSeason, lastEpisode, userRating)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         w.imdbID, w.title, w.year, w.poster,
         serializeGenre(w.genre), w.imdbRating, w.totalSeasons,
-        w.finishedAt, w.lastSeason ?? 1, w.lastEpisode ?? 1,
+        w.finishedAt, w.lastSeason ?? 1, w.lastEpisode ?? 1, w.userRating ?? null,
       ]
     );
     count++;
@@ -423,11 +477,11 @@ export async function restoreBackup(
   for (const t of toWatchShows) {
     await db.runAsync(
       `INSERT OR REPLACE INTO to_watch_shows
-        (imdbID, title, year, poster, genre, imdbRating, totalSeasons, addedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (imdbID, title, year, poster, genre, imdbRating, totalSeasons, addedAt, userRating)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         t.imdbID, t.title, t.year, t.poster,
-        serializeGenre(t.genre), t.imdbRating, t.totalSeasons, t.addedAt,
+        serializeGenre(t.genre), t.imdbRating, t.totalSeasons, t.addedAt, t.userRating ?? null,
       ]
     );
     count++;

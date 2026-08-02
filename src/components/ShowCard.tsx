@@ -21,6 +21,7 @@ interface ShowCardProps {
   subtitle?: string;
   badge?: string;
   badgeColor?: string;
+  userRating?: number | null;
   controls?: ProgressControls;
   onRemove?: () => void;
   onRewatch?: () => void;
@@ -77,6 +78,7 @@ export default function ShowCard({
   subtitle,
   badge,
   badgeColor = 'bg-[#6366f1]',
+  userRating,
   controls,
   onRemove,
   onRewatch,
@@ -142,6 +144,13 @@ export default function ShowCard({
               <Text className="text-yellow-400 text-sm">⭐ </Text>
               <Text className="text-[#f1f5f9] text-sm font-semibold">
                 {show.imdbRating}
+              </Text>
+            </View>
+          ) : null}
+          {userRating != null ? (
+            <View className="flex-row items-center">
+              <Text style={{ color: '#3b82f6', fontSize: 12, fontWeight: '600' }}>
+                ★ {userRating}
               </Text>
             </View>
           ) : null}

@@ -7,6 +7,7 @@ export interface Show {
   genre: string[];       // e.g. ["Drama", "Thriller"]
   imdbRating: string;    // e.g. "8.5" or "N/A"
   totalSeasons: string;  // e.g. "5" or "N/A"
+  userRating?: number | null; // user's personal rating 1–10
   plot?: string;         // short plot summary
   actors?: string;       // comma-separated cast list
 }

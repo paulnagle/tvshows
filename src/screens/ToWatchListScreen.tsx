@@ -2,12 +2,16 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, FlatList, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ToWatchStackParamList, ToWatchShow } from '../types';
+import type { ToWatchStackParamList, ToWatchShow, ReleaseStatus } from '../types';
 import {
   getAllToWatchShows,
   removeToWatchShow,
   moveToWatchToWatching,
 } from '../db/database';
+import {
+  getReleaseSubtitle,
+  loadToWatchReleaseStatuses,
+} from '../services/releaseTracking';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ShowCard from '../components/ShowCard';
@@ -18,6 +22,7 @@ type Nav = NativeStackNavigationProp<ToWatchStackParamList, 'ToWatchList'>;
 export default function ToWatchListScreen() {
   const navigation = useNavigation<Nav>();
   const [shows, setShows] = useState<ToWatchShow[]>([]);
+  const [releaseStatuses, setReleaseStatuses] = useState<Record<string, ReleaseStatus>>({});
   const [loading, setLoading] = useState(true);
 
   const loadShows = useCallback(async () => {
@@ -25,6 +30,8 @@ export default function ToWatchListScreen() {
     try {
       const data = await getAllToWatchShows();
       setShows(data);
+      const statuses = await loadToWatchReleaseStatuses(data);
+      setReleaseStatuses(statuses);
     } finally {
       setLoading(false);
     }
@@ -96,6 +103,7 @@ export default function ToWatchListScreen() {
             onPress={() =>
               navigation.navigate('ShowDetail', { imdbID: item.imdbID })
             }
+            subtitle={getReleaseSubtitle(releaseStatuses[item.imdbID])}
             onStartWatching={() => handleMoveToWatching(item)}
             onRemove={() => handleRemove(item)}
           />

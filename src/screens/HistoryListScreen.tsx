@@ -122,6 +122,7 @@ export default function HistoryListScreen() {
             subtitle={`Watched: ${formatDate(item.finishedAt)}`}
             badge="Watched"
             badgeColor="bg-emerald-700"
+            userRating={item.userRating}
             onRewatch={() => handleRewatch(item)}
             onAddToWatch={() => handleAddToWatch(item)}
             onRemove={() => handleRemove(item)}

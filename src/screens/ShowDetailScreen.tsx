@@ -23,9 +23,12 @@ import {
   isWatchedShow,
   addToWatchShow,
   isToWatchShow,
+  getShowRating,
+  updateShowRating,
 } from '../db/database';
 import type { Show } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import StarRatingModal from '../components/StarRatingModal';
 
 type ShowDetailRoute =
   | RouteProp<SearchStackParamList, 'ShowDetail'>
@@ -48,20 +51,24 @@ export default function ShowDetailScreen() {
   const [adding, setAdding] = useState(false);
   const [addingToWatch, setAddingToWatch] = useState(false);
   const [releaseStatus, setReleaseStatus] = useState<ReleaseStatus | null>(null);
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        const [detail, watching, watched, toWatch] = await Promise.all([
+        const [detail, watching, watched, toWatch, rating] = await Promise.all([
           getShowDetails(imdbID),
           isCurrentShow(imdbID),
           isWatchedShow(imdbID),
           isToWatchShow(imdbID),
+          getShowRating(imdbID),
         ]);
         setShow(detail);
         setAlreadyWatching(watching);
         setAlreadyWatched(watched);
         setAlreadyToWatch(toWatch);
+        setUserRating(rating);
 
         const release = await getReleaseStatus(imdbID, 1, 0).catch(() => null);
         setReleaseStatus(release);
@@ -166,6 +173,16 @@ export default function ShowDetailScreen() {
            <Text className="text-[#94a3b8] text-base ml-1">/ 10 (IMDB)</Text>
          </View>
 
+         {/* User rating */}
+         {userRating !== null && (
+           <View className="flex-row items-center mt-1">
+             <Text style={{ color: '#3b82f6', fontSize: 18 }}>★</Text>
+             <Text style={{ color: '#3b82f6', fontSize: 16, fontWeight: '600', marginLeft: 4 }}>
+               Your rating: {userRating} / 10
+             </Text>
+           </View>
+         )}
+
         {releaseStatus && (
           <View className={`mt-4 rounded-xl px-4 py-3 border ${
             releaseStatus.statusTone === 'available'
@@ -252,9 +269,22 @@ export default function ShowDetailScreen() {
           </View>
         )}
 
+        {/* Rate This Show — always visible */}
+        <View className="mt-5 gap-3">
+          <TouchableOpacity
+            onPress={() => setRatingModalVisible(true)}
+            className="rounded-xl py-3 items-center border border-[#3b82f6] bg-[#172554]"
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: '#3b82f6', fontWeight: '600', fontSize: 15 }}>
+              {userRating !== null ? `★ Change Rating (${userRating}/10)` : '☆ Rate This Show'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Buttons: only shown if not already in watch history */}
         {!alreadyWatched && (
-          <View className="mt-5 gap-3">
+          <View className="mt-3 gap-3">
             {/* Add to Watch List */}
             <TouchableOpacity
               onPress={handleAdd}
@@ -297,6 +327,20 @@ export default function ShowDetailScreen() {
           </View>
         )}
       </View>
+
+      <StarRatingModal
+        visible={ratingModalVisible}
+        currentRating={userRating}
+        onRate={async (rating) => {
+          await updateShowRating(imdbID, rating);
+          setUserRating(rating);
+        }}
+        onClear={async () => {
+          await updateShowRating(imdbID, null);
+          setUserRating(null);
+        }}
+        onClose={() => setRatingModalVisible(false)}
+      />
     </ScrollView>
   );
 }

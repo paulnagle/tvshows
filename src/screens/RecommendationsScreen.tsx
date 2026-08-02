@@ -31,6 +31,7 @@ export default function RecommendationsScreen() {
   const [addedIDs, setAddedIDs] = useState<Set<string>>(new Set());
   const [listMap, setListMap] = useState<Map<string, ListStatus>>(new Map());
   const [hiddenIDs, setHiddenIDs] = useState<Set<string>>(new Set());
+  const [sortedGenres, setSortedGenres] = useState<string[]>(TOP_GENRES);
 
   // Refresh list membership and hidden IDs whenever the screen comes into focus
   useFocusEffect(
@@ -52,6 +53,23 @@ export default function RecommendationsScreen() {
         setShows((prev) => prev.filter(
           (s) => !map.has(s.imdbID) && !hidden.includes(s.imdbID)
         ));
+
+        // Boost genres from highly-rated shows (userRating >= 7)
+        const allTracked = [...watching, ...watched, ...toWatch];
+        const boostedGenreSet = new Set<string>();
+        for (const show of allTracked) {
+          if (show.userRating != null && show.userRating >= 7) {
+            for (const g of show.genre) {
+              // Only consider genres that exist in TOP_GENRES
+              if (TOP_GENRES.includes(g)) {
+                boostedGenreSet.add(g);
+              }
+            }
+          }
+        }
+        const boosted = TOP_GENRES.filter((g) => boostedGenreSet.has(g));
+        const remaining = TOP_GENRES.filter((g) => !boostedGenreSet.has(g));
+        setSortedGenres([...boosted, ...remaining]);
       }
       loadLists();
     }, []),
@@ -108,7 +126,7 @@ export default function RecommendationsScreen() {
       {/* Genre pills */}
       <View className="px-4 pt-4 pb-2">
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {TOP_GENRES.map((g) => {
+          {sortedGenres.map((g) => {
             const active = g === selectedGenre;
             return (
               <TouchableOpacity

@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import type { CurrentShow, ReleaseStatus } from '../types';
+import type { CurrentShow, ToWatchShow, ReleaseStatus } from '../types';
 import { getReleaseStatus } from './tmdb';
 
 Notifications.setNotificationHandler({
@@ -42,6 +42,28 @@ export async function loadReleaseStatuses(shows: CurrentShow[]): Promise<Release
           show.currentSeason,
           show.currentEpisode
         );
+        return [show.imdbID, status] as const;
+      } catch {
+        return [
+          show.imdbID,
+          {
+            statusLabel: 'Release status unavailable',
+            statusTone: 'upcoming' as const,
+            isAvailableNow: false,
+          },
+        ] as const;
+      }
+    })
+  );
+
+  return Object.fromEntries(entries);
+}
+
+export async function loadToWatchReleaseStatuses(shows: ToWatchShow[]): Promise<ReleaseStatusMap> {
+  const entries = await Promise.all(
+    shows.map(async (show) => {
+      try {
+        const status = await getReleaseStatus(show.imdbID, 1, 0);
         return [show.imdbID, status] as const;
       } catch {
         return [
@@ -107,7 +129,7 @@ export function getReleaseSubtitle(releaseStatus?: ReleaseStatus): string | unde
       : undefined;
 
   if (!episodeLabel) {
-    return releaseStatus.statusLabel;
+    return undefined;
   }
 
   return `${episodeLabel} · ${releaseStatus.statusLabel}`;

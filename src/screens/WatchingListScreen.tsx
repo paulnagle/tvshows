@@ -191,6 +191,7 @@ export default function WatchingListScreen() {
             subtitle={getReleaseSubtitle(releaseStatuses[item.imdbID])}
             badge={releaseStatuses[item.imdbID]?.isAvailableNow ? 'New Episode' : `▶ S${item.currentSeason}E${item.currentEpisode}`}
             badgeColor={releaseStatuses[item.imdbID]?.isAvailableNow ? getReleaseBadgeColor(releaseStatuses[item.imdbID]) : 'bg-[#6366f1]'}
+            userRating={item.userRating}
             controls={{
               onPrevEpisode: () => handlePrevEpisode(item),
               onNextEpisode: () => handleNextEpisode(item),
