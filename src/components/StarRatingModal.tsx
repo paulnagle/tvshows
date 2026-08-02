@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 
 interface StarRatingModalProps {
   visible: boolean;
@@ -13,6 +14,62 @@ interface StarRatingModalProps {
   onRate: (rating: number) => void;
   onClear: () => void;
   onClose: () => void;
+}
+
+/** Render 10 stars with partial fill based on a 1–10 decimal rating. */
+function PartialStars({ rating }: { rating: number }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
+      {Array.from({ length: 10 }, (_, i) => {
+        // How much of this star is filled (0–1)
+        const fill = Math.min(1, Math.max(0, rating - i));
+
+        if (fill <= 0) {
+          // Empty star
+          return (
+            <Text key={i} style={{ fontSize: 26, color: '#475569' }}>
+              ☆
+            </Text>
+          );
+        }
+
+        if (fill >= 1) {
+          // Full star
+          return (
+            <Text key={i} style={{ fontSize: 26, color: '#3b82f6' }}>
+              ★
+            </Text>
+          );
+        }
+
+        // Partial star — clip a filled star to `fill * 100%` width
+        return (
+          <View key={i} style={{ width: 26, height: 32 }}>
+            {/* Empty star background */}
+            <Text
+              style={{
+                fontSize: 26,
+                color: '#475569',
+                position: 'absolute',
+              }}
+            >
+              ☆
+            </Text>
+            {/* Filled star clipped by overflow hidden */}
+            <View
+              style={{
+                position: 'absolute',
+                width: `${fill * 100}%` as any,
+                overflow: 'hidden',
+              }}
+            >
+              <Text style={{ fontSize: 26, color: '#3b82f6' }}>★</Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
 }
 
 export default function StarRatingModal({
@@ -44,6 +101,11 @@ export default function StarRatingModal({
     onClose();
   }
 
+  /** Round slider value to 1 decimal place. */
+  function handleSliderChange(value: number) {
+    setPendingRating(Math.round(value * 10) / 10);
+  }
+
   return (
     <Modal
       visible={visible}
@@ -73,28 +135,26 @@ export default function StarRatingModal({
           Rate This Show
         </Text>
 
-        {/* 10 star buttons */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 20 }}>
-          {Array.from({ length: 10 }, (_, i) => i + 1).map((star) => {
-            const filled = pendingRating !== null && star <= pendingRating;
-            return (
-              <TouchableOpacity
-                key={star}
-                onPress={() => setPendingRating(star)}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              >
-                <Text style={{ fontSize: 26, color: filled ? '#3b82f6' : '#475569' }}>
-                  {filled ? '★' : '☆'}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* Stars — partial fill driven by slider */}
+        <PartialStars rating={pendingRating ?? 0} />
 
         {/* Rating label */}
-        <Text style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', marginBottom: 20 }}>
-          {pendingRating !== null ? `${pendingRating} / 10` : 'Tap a star to rate'}
+        <Text style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', marginTop: 12, marginBottom: 4 }}>
+          {pendingRating !== null ? `${pendingRating.toFixed(1)} / 10` : 'Move the slider to rate'}
         </Text>
+
+        {/* Slider */}
+        <Slider
+          style={{ width: '100%', height: 40, marginBottom: 16 }}
+          minimumValue={1}
+          maximumValue={10}
+          step={0.1}
+          value={pendingRating ?? 5}
+          onValueChange={handleSliderChange}
+          minimumTrackTintColor="#3b82f6"
+          maximumTrackTintColor="#475569"
+          thumbTintColor="#6366f1"
+        />
 
         {/* Action buttons */}
         <TouchableOpacity

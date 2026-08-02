@@ -3,7 +3,8 @@ import { View, FlatList, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HistoryStackParamList, WatchedShow } from '../types';
-import { getAllWatchedShows, removeWatchedShow, moveToWatching, moveWatchedToToWatch } from '../db/database';
+import { getAllWatchedShows, removeWatchedShow, moveToWatching, moveWatchedToToWatch, updateImdbRating } from '../db/database';
+import { getShowDetails } from '../services/tmdb';
 import ShowCard from '../components/ShowCard';
 import { dataEvents } from '../events/dataEvents';
 import EmptyState from '../components/EmptyState';
@@ -30,6 +31,25 @@ export default function HistoryListScreen() {
     try {
       const data = await getAllWatchedShows();
       setShows(data);
+
+      // Background-refresh imdbRating for any show stored as 'N/A'
+      data
+        .filter((s) => !s.imdbRating || s.imdbRating === 'N/A')
+        .forEach(async (s) => {
+          try {
+            const detail = await getShowDetails(s.imdbID);
+            if (detail.imdbRating && detail.imdbRating !== 'N/A') {
+              await updateImdbRating(s.imdbID, detail.imdbRating);
+              setShows((prev) =>
+                prev.map((p) =>
+                  p.imdbID === s.imdbID ? { ...p, imdbRating: detail.imdbRating } : p
+                )
+              );
+            }
+          } catch {
+            // silently ignore — rating will retry next load
+          }
+        });
     } finally {
       setLoading(false);
     }

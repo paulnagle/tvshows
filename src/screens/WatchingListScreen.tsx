@@ -13,8 +13,9 @@ import {
   moveToWatched,
   removeCurrentShow,
   updateShowOrder,
+  updateImdbRating,
 } from '../db/database';
-import { getSeasonEpisodeCounts } from '../services/tmdb';
+import { getSeasonEpisodeCounts, getShowDetails } from '../services/tmdb';
 import {
   getReleaseBadgeColor,
   getReleaseSubtitle,
@@ -47,6 +48,25 @@ export default function WatchingListScreen() {
     try {
       const data = await getAllCurrentShows();
       setShows(data);
+
+      // Background-refresh imdbRating for any show stored as 'N/A'
+      data
+        .filter((s) => !s.imdbRating || s.imdbRating === 'N/A')
+        .forEach(async (s) => {
+          try {
+            const detail = await getShowDetails(s.imdbID);
+            if (detail.imdbRating && detail.imdbRating !== 'N/A') {
+              await updateImdbRating(s.imdbID, detail.imdbRating);
+              setShows((prev) =>
+                prev.map((p) =>
+                  p.imdbID === s.imdbID ? { ...p, imdbRating: detail.imdbRating } : p
+                )
+              );
+            }
+          } catch {
+            // silently ignore — rating will retry next load
+          }
+        });
 
       // Fetch episode counts for every show that has a known season count
       const entries = await Promise.all(
@@ -189,6 +209,7 @@ export default function WatchingListScreen() {
               navigation.navigate('ShowDetail', { imdbID: item.imdbID })
             }
             subtitle={getReleaseSubtitle(releaseStatuses[item.imdbID])}
+            subtitleHighlighted={releaseStatuses[item.imdbID]?.statusTone === 'upcoming'}
             badge={releaseStatuses[item.imdbID]?.isAvailableNow ? 'New Episode' : `▶ S${item.currentSeason}E${item.currentEpisode}`}
             badgeColor={releaseStatuses[item.imdbID]?.isAvailableNow ? getReleaseBadgeColor(releaseStatuses[item.imdbID]) : 'bg-[#6366f1]'}
             userRating={item.userRating}

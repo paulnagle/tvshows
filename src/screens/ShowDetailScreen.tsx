@@ -136,10 +136,10 @@ export default function ShowDetailScreen() {
     ? '✓ Already Watching'
     : adding
     ? 'Adding…'
-    : '+ Add to Watch List';
+    : '+ Add to Watch Next';
 
   const toWatchButtonLabel = alreadyToWatch
-    ? '✓ In To Watch List'
+    ? '✓ In Watch Next'
     : addingToWatch
     ? 'Adding…'
     : '+ Add to To Watch';
@@ -178,12 +178,12 @@ export default function ShowDetailScreen() {
            <View className="flex-row items-center mt-1">
              <Text style={{ color: '#3b82f6', fontSize: 18 }}>★</Text>
              <Text style={{ color: '#3b82f6', fontSize: 16, fontWeight: '600', marginLeft: 4 }}>
-               Your rating: {userRating} / 10
+               Your rating: {typeof userRating === 'number' ? userRating.toFixed(1) : userRating} / 10
              </Text>
            </View>
          )}
 
-        {releaseStatus && (
+        {releaseStatus && (releaseStatus.nextEpisodeAirDate || releaseStatus.statusTone === 'ended') && (
           <View className={`mt-4 rounded-xl px-4 py-3 border ${
             releaseStatus.statusTone === 'available'
               ? 'bg-emerald-950 border-emerald-800'
@@ -277,7 +277,7 @@ export default function ShowDetailScreen() {
             activeOpacity={0.8}
           >
             <Text style={{ color: '#3b82f6', fontWeight: '600', fontSize: 15 }}>
-              {userRating !== null ? `★ Change Rating (${userRating}/10)` : '☆ Rate This Show'}
+              {userRating !== null ? `★ Change Rating (${typeof userRating === 'number' ? userRating.toFixed(1) : userRating}/10)` : '☆ Rate This Show'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -285,7 +285,7 @@ export default function ShowDetailScreen() {
         {/* Buttons: only shown if not already in watch history */}
         {!alreadyWatched && (
           <View className="mt-3 gap-3">
-            {/* Add to Watch List */}
+            {/* Add to Watch Next */}
             <TouchableOpacity
               onPress={handleAdd}
               disabled={alreadyWatching || adding}

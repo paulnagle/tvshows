@@ -7,7 +7,9 @@ import {
   getAllToWatchShows,
   removeToWatchShow,
   moveToWatchToWatching,
+  updateImdbRating,
 } from '../db/database';
+import { getShowDetails } from '../services/tmdb';
 import {
   getReleaseSubtitle,
   loadToWatchReleaseStatuses,
@@ -30,6 +32,26 @@ export default function ToWatchListScreen() {
     try {
       const data = await getAllToWatchShows();
       setShows(data);
+
+      // Background-refresh imdbRating for any show stored as 'N/A'
+      data
+        .filter((s) => !s.imdbRating || s.imdbRating === 'N/A')
+        .forEach(async (s) => {
+          try {
+            const detail = await getShowDetails(s.imdbID);
+            if (detail.imdbRating && detail.imdbRating !== 'N/A') {
+              await updateImdbRating(s.imdbID, detail.imdbRating);
+              setShows((prev) =>
+                prev.map((p) =>
+                  p.imdbID === s.imdbID ? { ...p, imdbRating: detail.imdbRating } : p
+                )
+              );
+            }
+          } catch {
+            // silently ignore — rating will retry next load
+          }
+        });
+
       const statuses = await loadToWatchReleaseStatuses(data);
       setReleaseStatuses(statuses);
     } finally {

@@ -184,7 +184,7 @@ export async function getAllCurrentShows(): Promise<CurrentShow[]> {
     year: r.year as string,
     poster: r.poster as string,
     genre: parseGenre(r.genre as string | null),
-    imdbRating: r.imdbRating as string,
+    imdbRating: (r.imdbRating as string | null) ?? 'N/A',
     totalSeasons: r.totalSeasons as string,
     currentSeason: r.currentSeason as number,
     currentEpisode: r.currentEpisode as number,
@@ -265,7 +265,7 @@ export async function getAllToWatchShows(): Promise<ToWatchShow[]> {
     year: r.year as string,
     poster: r.poster as string,
     genre: parseGenre(r.genre as string | null),
-    imdbRating: r.imdbRating as string,
+    imdbRating: (r.imdbRating as string | null) ?? 'N/A',
     totalSeasons: r.totalSeasons as string,
     addedAt: r.addedAt as string,
     userRating: (r.userRating as number | null) ?? null,
@@ -318,7 +318,7 @@ export async function getAllWatchedShows(): Promise<WatchedShow[]> {
     year: r.year as string,
     poster: r.poster as string,
     genre: parseGenre(r.genre as string | null),
-    imdbRating: r.imdbRating as string,
+    imdbRating: (r.imdbRating as string | null) ?? 'N/A',
     totalSeasons: r.totalSeasons as string,
     finishedAt: r.finishedAt as string,
     lastSeason: (r.lastSeason as number) ?? 1,
@@ -393,6 +393,16 @@ export async function isWatchedShow(imdbID: string): Promise<boolean> {
     [imdbID]
   );
   return (row?.count ?? 0) > 0;
+}
+
+// ─── IMDB rating refresh ──────────────────────────────────────────────────────
+export async function updateImdbRating(imdbID: string, imdbRating: string): Promise<void> {
+  const tables = ['current_shows', 'watched_shows', 'to_watch_shows'] as const;
+  await Promise.all(
+    tables.map((table) =>
+      db.runAsync(`UPDATE ${table} SET imdbRating = ? WHERE imdbID = ?`, [imdbRating, imdbID])
+    )
+  );
 }
 
 // ─── User ratings ─────────────────────────────────────────────────────────────

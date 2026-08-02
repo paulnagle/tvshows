@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useRef, useState, useCallback } from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import type { LinkingOptions, NavigationContainerRef } from '@react-navigation/native';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import WatchingListScreen from '../screens/WatchingListScreen';
 import HistoryListScreen from '../screens/HistoryListScreen';
@@ -20,6 +22,14 @@ import type {
   ToWatchStackParamList,
   SettingsStackParamList,
 } from '../types';
+
+// ─── Shared screen options ────────────────────────────────────────────────────
+const stackScreenOptions = {
+  headerStyle: { backgroundColor: '#1e293b' },
+  headerTintColor: '#f1f5f9',
+  headerTitleStyle: { fontWeight: '600' as const },
+  contentStyle: { backgroundColor: '#0f172a' },
+};
 
 // ─── Stack navigators ─────────────────────────────────────────────────────────
 const WatchingStack = createNativeStackNavigator<WatchingStackParamList>();
@@ -81,89 +91,171 @@ function ToWatchNavigator() {
   );
 }
 
-// ─── Shared screen options ────────────────────────────────────────────────────
-const stackScreenOptions = {
-  headerStyle: { backgroundColor: '#1e293b' },
-  headerTintColor: '#f1f5f9',
-  headerTitleStyle: { fontWeight: '600' as const },
-  contentStyle: { backgroundColor: '#0f172a' },
+// ─── Root stack param list ────────────────────────────────────────────────────
+type RootStackParamList = {
+  MainTabs: undefined;
 };
 
 // ─── Deep-link / web URL config ───────────────────────────────────────────────
-const linking = {
+const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [],
   config: {
     screens: {
-      Watching: '',          // "/" → main (Currently Watching) tab
-      ToWatch: 'to-watch',
-      History: 'history',
-      Recommendations: 'recommendations',
-      Search: 'search',
-      Settings: 'settings',
+      MainTabs: {
+        screens: {
+          Watching: '',
+          ToWatch: 'to-watch',
+          History: 'history',
+          Recommendations: 'recommendations',
+          Search: 'search',
+          Settings: 'settings',
+        },
+      },
     },
   },
 };
 
-// ─── Bottom tab navigator ─────────────────────────────────────────────────────
-const Tab = createBottomTabNavigator();
+// ─── Tab labels & sub-labels ──────────────────────────────────────────────────
+const TAB_ICONS: Record<string, string> = {
+  Watching:        '▶',
+  ToWatch:         '◷',
+  History:         '✦',
+  Recommendations: '★',
+  Search:          '⌕',
+  Settings:        '⚙',
+};
 
-export default function AppNavigator() {
+const TAB_LABELS: Record<string, string> = {
+  Watching:        'Watching',
+  ToWatch:         'Up Next',
+  History:         'History',
+  Recommendations: 'For You',
+  Search:          'Search',
+  Settings:        'Settings',
+};
+
+// ─── Main swipeable tabs (all 6 tabs) ─────────────────────────────────────────
+const MainTop = createMaterialTopTabNavigator();
+
+function MainTabsNavigator() {
   return (
-    <NavigationContainer linking={linking}>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarHideOnKeyboard: true,
-          tabBarStyle: {
-            backgroundColor: '#1e293b',
-            borderTopColor: '#334155',
-            height: 64,
-            paddingBottom: 10,
-            paddingTop: 8,
-          },
-          tabBarActiveTintColor: '#6366f1',
-          tabBarInactiveTintColor: '#94a3b8',
-          tabBarLabel: ({ color }) => {
-            if (route.name === 'Watching') {
-              return (
-                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>📺</Text>
-              );
-            }
-            if (route.name === 'ToWatch') {
-              return (
-                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>🔖</Text>
-              );
-            }
-            if (route.name === 'History') {
-              return (
-                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>⏳</Text>
-              );
-            }
-            if (route.name === 'Recommendations') {
-              return (
-                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>💡</Text>
-              );
-            }
-            if (route.name === 'Search') {
-              return (
-                <Text style={{ color, fontSize: 30, lineHeight: 34 }}>🔍</Text>
-              );
-            }
-            return (
-              <Text style={{ color, fontSize: 30, lineHeight: 34 }}>⚙️</Text>
-            );
-          },
-          tabBarIcon: () => null,
-          tabBarIconStyle: { display: 'none' },
-        })}
-      >
-        <Tab.Screen name="Watching" component={WatchingNavigator} />
-        <Tab.Screen name="ToWatch" component={ToWatchNavigator} />
-        <Tab.Screen name="History" component={HistoryNavigator} />
-        <Tab.Screen name="Recommendations" component={RecommendationsNavigator} />
-        <Tab.Screen name="Search" component={SearchNavigator} />
-        <Tab.Screen name="Settings" component={SettingsNavigator} />
-      </Tab.Navigator>
+    <MainTop.Navigator
+      tabBarPosition="bottom"
+      screenOptions={{
+        swipeEnabled: true,
+        animationEnabled: true,
+        lazy: true,
+      }}
+      tabBar={EmptyTabBar}
+    >
+      <MainTop.Screen name="Watching" component={WatchingNavigator} />
+      <MainTop.Screen name="ToWatch" component={ToWatchNavigator} />
+      <MainTop.Screen name="History" component={HistoryNavigator} />
+      <MainTop.Screen name="Recommendations" component={RecommendationsNavigator} />
+      <MainTop.Screen name="Search" component={SearchNavigator} />
+      <MainTop.Screen name="Settings" component={SettingsNavigator} />
+    </MainTop.Navigator>
+  );
+}
+
+// ─── Root stack navigator ─────────────────────────────────────────────────────
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+
+// ─── Empty tab bar (suppresses the built-in one) ──────────────────────────────
+function EmptyTabBar() {
+  return null;
+}
+
+// ─── Derive the active MainTop tab name from navRef ──────────────────────────
+function getActiveNames(
+  navRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null>,
+): { innerTabName: string } {
+  const state = navRef.current?.getState();
+  const mainTabsRoute = state?.routes?.find((r: any) => r.name === 'MainTabs') as any;
+  const innerTabName =
+    mainTabsRoute?.state?.routes?.[mainTabsRoute?.state?.index ?? 0]?.name ?? 'Watching';
+  return { innerTabName };
+}
+
+// ─── Custom bottom bar — lives outside navigator tree, uses navRef ────────────
+interface BottomBarProps {
+  navRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null>;
+  innerTabName: string;
+}
+
+function CustomBottomBar({ navRef, innerTabName }: BottomBarProps) {
+  const insets = useSafeAreaInsets();
+
+  const tabs = [
+    { name: 'Watching',        innerTab: 'Watching' },
+    { name: 'ToWatch',         innerTab: 'ToWatch' },
+    { name: 'History',         innerTab: 'History' },
+    { name: 'Recommendations', innerTab: 'Recommendations' },
+    { name: 'Search',          innerTab: 'Search' },
+    { name: 'Settings',        innerTab: 'Settings' },
+  ];
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: '#1e293b',
+        borderTopColor: '#334155',
+        borderTopWidth: 1,
+        paddingBottom: insets.bottom || 10,
+        paddingTop: 8,
+        height: 64 + (insets.bottom || 10),
+      }}
+    >
+      {tabs.map((tab) => {
+        const isActive = innerTabName === tab.innerTab;
+        const color = isActive ? '#6366f1' : '#94a3b8';
+
+        return (
+          <TouchableOpacity
+            key={tab.name}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 }}
+            onPress={() => {
+              if (!navRef.current) return;
+              navRef.current.navigate('MainTabs', { screen: tab.innerTab } as any);
+            }}
+          >
+            <Text style={{ color, fontSize: 22, lineHeight: 26 }}>
+              {TAB_ICONS[tab.name]}
+            </Text>
+            <Text style={{ color, fontSize: 10, lineHeight: 13, letterSpacing: 0.2 }}>
+              {TAB_LABELS[tab.name]}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Root navigator ───────────────────────────────────────────────────────────
+export default function AppNavigator() {
+  const navRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const [, setTick] = useState(0);
+  const forceUpdate = useCallback(() => setTick((n) => n + 1), []);
+
+  const onStateChange = useCallback(() => {
+    forceUpdate();
+  }, [forceUpdate]);
+
+  const { innerTabName } = getActiveNames(navRef);
+
+  return (
+    <NavigationContainer ref={navRef} linking={linking} onStateChange={onStateChange}>
+      <View style={{ flex: 1 }}>
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          <RootStack.Screen name="MainTabs" component={MainTabsNavigator} />
+        </RootStack.Navigator>
+        <CustomBottomBar
+          navRef={navRef}
+          innerTabName={innerTabName}
+        />
+      </View>
     </NavigationContainer>
   );
 }

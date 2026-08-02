@@ -21,6 +21,7 @@ interface ShowCardProps {
   subtitle?: string;
   badge?: string;
   badgeColor?: string;
+  subtitleHighlighted?: boolean;
   userRating?: number | null;
   controls?: ProgressControls;
   onRemove?: () => void;
@@ -78,6 +79,7 @@ export default function ShowCard({
   subtitle,
   badge,
   badgeColor = 'bg-[#6366f1]',
+  subtitleHighlighted = false,
   userRating,
   controls,
   onRemove,
@@ -133,7 +135,19 @@ export default function ShowCard({
           )}
 
           {subtitle ? (
-            <Text className="text-[#94a3b8] text-sm mt-1">{subtitle}</Text>
+            <View
+              className={`mt-1 rounded-md px-2 py-1 border ${
+                subtitleHighlighted
+                  ? 'bg-amber-500/15 border-amber-400/50'
+                  : 'border-transparent'
+              }`}
+            >
+              <Text
+                className={subtitleHighlighted ? 'text-amber-200 text-sm font-semibold' : 'text-[#94a3b8] text-sm'}
+              >
+                {subtitle}
+              </Text>
+            </View>
           ) : null}
         </View>
 
@@ -150,7 +164,7 @@ export default function ShowCard({
           {userRating != null ? (
             <View className="flex-row items-center">
               <Text style={{ color: '#3b82f6', fontSize: 12, fontWeight: '600' }}>
-                ★ {userRating}
+                ★ {typeof userRating === 'number' ? userRating.toFixed(1) : userRating}
               </Text>
             </View>
           ) : null}
