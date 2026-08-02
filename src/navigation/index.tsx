@@ -89,12 +89,27 @@ const stackScreenOptions = {
   contentStyle: { backgroundColor: '#0f172a' },
 };
 
+// ─── Deep-link / web URL config ───────────────────────────────────────────────
+const linking = {
+  prefixes: [],
+  config: {
+    screens: {
+      Watching: '',          // "/" → main (Currently Watching) tab
+      ToWatch: 'to-watch',
+      History: 'history',
+      Recommendations: 'recommendations',
+      Search: 'search',
+      Settings: 'settings',
+    },
+  },
+};
+
 // ─── Bottom tab navigator ─────────────────────────────────────────────────────
 const Tab = createBottomTabNavigator();
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,

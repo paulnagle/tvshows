@@ -26,6 +26,7 @@ interface ShowCardProps {
   onRewatch?: () => void;
   onStartWatching?: () => void;
   onAddToWatch?: () => void;
+  onHide?: () => void;
   /** Long-press drag handler supplied by DraggableFlatList */
   onDrag?: (event: GestureResponderEvent) => void;
   isDragging?: boolean;
@@ -81,6 +82,7 @@ export default function ShowCard({
   onRewatch,
   onStartWatching,
   onAddToWatch,
+  onHide,
   onDrag,
   isDragging = false,
 }: ShowCardProps) {
@@ -232,6 +234,16 @@ export default function ShowCard({
               <Text className="text-blue-300 text-xs font-semibold">
                 {onStartWatching ? '✕' : '+ Watch Next'}
               </Text>
+            </TouchableOpacity>
+          )}
+          {onHide && (
+            <TouchableOpacity
+              onPress={onHide}
+              className="bg-red-950 border border-red-800 rounded-md py-2 items-center"
+              style={{ flex: 1 }}
+              activeOpacity={0.7}
+            >
+              <Text className="text-red-400 text-xs font-semibold">✕</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -50,6 +50,10 @@ export async function initDatabase(): Promise<void> {
       totalSeasons TEXT,
       addedAt      TEXT    NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS hidden_recommendations (
+      imdbID TEXT NOT NULL UNIQUE
+    );
   `);
 
   // Migration: add sort_order if it doesn't exist yet (existing installs)
@@ -358,6 +362,21 @@ export async function isWatchedShow(imdbID: string): Promise<boolean> {
     [imdbID]
   );
   return (row?.count ?? 0) > 0;
+}
+
+// ─── Hidden recommendations ───────────────────────────────────────────────────
+export async function addHiddenRecommendation(imdbID: string): Promise<void> {
+  await db.runAsync(
+    `INSERT OR IGNORE INTO hidden_recommendations (imdbID) VALUES (?)`,
+    [imdbID]
+  );
+}
+
+export async function getAllHiddenRecommendationIDs(): Promise<string[]> {
+  const rows = await db.getAllAsync<{ imdbID: string }>(
+    `SELECT imdbID FROM hidden_recommendations`
+  );
+  return rows.map((r) => r.imdbID);
 }
 
 // ─── Backup restore ───────────────────────────────────────────────────────────

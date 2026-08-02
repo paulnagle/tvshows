@@ -9,6 +9,8 @@ import {
   getAllCurrentShows,
   getAllToWatchShows,
   getAllWatchedShows,
+  addHiddenRecommendation,
+  getAllHiddenRecommendationIDs,
 } from '../db/database';
 import ShowCard from '../components/ShowCard';
 import EmptyState from '../components/EmptyState';
@@ -28,21 +30,28 @@ export default function RecommendationsScreen() {
   const [loading, setLoading] = useState(false);
   const [addedIDs, setAddedIDs] = useState<Set<string>>(new Set());
   const [listMap, setListMap] = useState<Map<string, ListStatus>>(new Map());
+  const [hiddenIDs, setHiddenIDs] = useState<Set<string>>(new Set());
 
-  // Refresh list membership whenever the screen comes into focus
+  // Refresh list membership and hidden IDs whenever the screen comes into focus
   useFocusEffect(
     useCallback(() => {
       async function loadLists() {
-        const [watching, toWatch, watched] = await Promise.all([
+        const [watching, toWatch, watched, hidden] = await Promise.all([
           getAllCurrentShows(),
           getAllToWatchShows(),
           getAllWatchedShows(),
+          getAllHiddenRecommendationIDs(),
         ]);
         const map = new Map<string, ListStatus>();
         watched.forEach((s) => map.set(s.imdbID, 'watched'));
         toWatch.forEach((s) => map.set(s.imdbID, 'towatch'));
         watching.forEach((s) => map.set(s.imdbID, 'watching'));
         setListMap(map);
+        setHiddenIDs(new Set(hidden));
+        // Re-filter any currently displayed shows
+        setShows((prev) => prev.filter(
+          (s) => !map.has(s.imdbID) && !hidden.includes(s.imdbID)
+        ));
       }
       loadLists();
     }, []),
@@ -53,9 +62,16 @@ export default function RecommendationsScreen() {
       await addToWatchShow(show);
       setAddedIDs((prev) => new Set(prev).add(show.imdbID));
       setListMap((prev) => new Map(prev).set(show.imdbID, 'towatch'));
+      setShows((prev) => prev.filter((s) => s.imdbID !== show.imdbID));
     } catch {
       Alert.alert('Error', 'Could not add to To Watch list.');
     }
+  }
+
+  async function handleHide(show: Show) {
+    await addHiddenRecommendation(show.imdbID);
+    setHiddenIDs((prev) => new Set(prev).add(show.imdbID));
+    setShows((prev) => prev.filter((s) => s.imdbID !== show.imdbID));
   }
 
   function getBadge(imdbID: string): { badge: string; badgeColor: string } | null {
@@ -79,13 +95,13 @@ export default function RecommendationsScreen() {
     setLoading(true);
     try {
       const results = await getShowsByGenre(genre);
-      setShows(results);
+      setShows(results.filter((s) => !listMap.has(s.imdbID) && !hiddenIDs.has(s.imdbID)));
     } catch {
       setShows([]);
     } finally {
       setLoading(false);
     }
-  }, [selectedGenre]);
+  }, [selectedGenre, listMap, hiddenIDs]);
 
   return (
     <View className="flex-1 bg-[#0f172a]">
@@ -147,6 +163,9 @@ export default function RecommendationsScreen() {
                 }
                 onAddToWatch={
                   alreadyInAList ? undefined : () => handleAddToWatch(item)
+                }
+                onHide={
+                  alreadyInAList ? undefined : () => handleHide(item)
                 }
                 badge={badgeInfo?.badge}
                 badgeColor={badgeInfo?.badgeColor}
