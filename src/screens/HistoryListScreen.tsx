@@ -4,7 +4,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { HistoryStackParamList, WatchedShow } from '../types';
 import { getAllWatchedShows, removeWatchedShow, moveToWatching, moveWatchedToToWatch, updateImdbRating } from '../db/database';
-import { getShowDetails } from '../services/tmdb';
+import { getShowDetails } from '../services/omdb';
 import ShowCard from '../components/ShowCard';
 import { dataEvents } from '../events/dataEvents';
 import EmptyState from '../components/EmptyState';

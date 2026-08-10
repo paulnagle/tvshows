@@ -16,7 +16,8 @@ import type {
   RecommendationsStackParamList,
   ReleaseStatus,
 } from '../types';
-import { getShowDetails, getSeasonEpisodeCounts, getReleaseStatus } from '../services/tmdb';
+import { getShowDetails, getSeasonEpisodeCounts } from '../services/omdb';
+import { getReleaseStatus } from '../services/tmdb';
 import {
   addCurrentShow,
   isCurrentShow,

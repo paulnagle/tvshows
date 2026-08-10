@@ -11,12 +11,19 @@ import {
 import { exportBackup, importBackup } from '../services/backup';
 import { dataEvents } from '../events/dataEvents';
 import { getTmdbApiKey, setTmdbApiKey, deleteTmdbApiKey } from '../services/tmdbApiKey';
+import { getOmdbApiKey, setOmdbApiKey, deleteOmdbApiKey } from '../services/omdbApiKey';
 import { getReleaseAlertsEnabled, setReleaseAlertsEnabled } from '../services/releaseAlerts';
 import { requestReleaseAlertPermissions } from '../services/releaseTracking';
 
 export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+
+  // ── OMDb API key ──────────────────────────────────────────────────────────
+  const [omdbKey, setOmdbKey] = useState('');
+  const [savedOmdbKey, setSavedOmdbKey] = useState('');
+  const [savingOmdbKey, setSavingOmdbKey] = useState(false);
+  const [omdbKeyVisible, setOmdbKeyVisible] = useState(false);
 
   // ── TMDB API key ──────────────────────────────────────────────────────────
   const [apiKey, setApiKey] = useState('');
@@ -26,12 +33,37 @@ export default function SettingsScreen() {
   const [releaseAlertsEnabled, setReleaseAlertsEnabledState] = useState(false);
 
   useEffect(() => {
+    getOmdbApiKey().then((key) => {
+      setSavedOmdbKey(key);
+      setOmdbKey(key);
+    });
     getTmdbApiKey().then((key) => {
       setSavedKey(key);
       setApiKey(key);
     });
     getReleaseAlertsEnabled().then(setReleaseAlertsEnabledState);
   }, []);
+
+  async function handleSaveOmdbKey() {
+    setSavingOmdbKey(true);
+    try {
+      if (!omdbKey.trim()) {
+        await deleteOmdbApiKey();
+        setSavedOmdbKey('');
+        Alert.alert('API Key Cleared', 'The OMDb API key has been removed.');
+      } else {
+        await setOmdbApiKey(omdbKey.trim());
+        setSavedOmdbKey(omdbKey.trim());
+        Alert.alert('Saved', 'OMDb API key saved successfully.');
+      }
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Could not save key');
+    } finally {
+      setSavingOmdbKey(false);
+    }
+  }
+
+  const omdbKeyChanged = omdbKey !== savedOmdbKey;
 
   async function handleSaveKey() {
     setSavingKey(true);
@@ -110,6 +142,60 @@ export default function SettingsScreen() {
   return (
     <ScrollView className="flex-1 bg-[#0f172a]" contentContainerStyle={{ padding: 20 }}>
 
+      {/* ── OMDb API Key section ── */}
+      <Text className="text-[#94a3b8] text-xs font-semibold uppercase tracking-widest mb-3">
+        OMDb API Key
+      </Text>
+
+      <View className="bg-[#1e293b] rounded-xl overflow-hidden mb-2">
+        <View className="px-4 pt-4 pb-3">
+          <Text className="text-[#f1f5f9] text-base font-medium mb-1">API Key</Text>
+          <Text className="text-[#64748b] text-sm mb-3">
+            Required for search and show details.{'\n'}
+            Get yours at omdbapi.com → API Key.
+          </Text>
+
+          {/* Input row */}
+          <View className="flex-row items-center bg-[#0f172a] rounded-lg overflow-hidden border border-[#334155]">
+            <TextInput
+              value={omdbKey}
+              onChangeText={setOmdbKey}
+              placeholder="Paste your OMDb API key here"
+              placeholderTextColor="#475569"
+              secureTextEntry={!omdbKeyVisible}
+              autoCapitalize="none"
+              autoCorrect={false}
+              className="flex-1 text-[#f1f5f9] text-sm px-3 py-3"
+            />
+            <TouchableOpacity
+              onPress={() => setOmdbKeyVisible((v) => !v)}
+              className="px-3 py-3"
+            >
+              <Text className="text-[#64748b] text-sm">{omdbKeyVisible ? 'Hide' : 'Show'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Save button */}
+        <TouchableOpacity
+          onPress={handleSaveOmdbKey}
+          disabled={savingOmdbKey || !omdbKeyChanged}
+          className="flex-row items-center justify-between px-4 py-3 border-t border-[#334155] active:opacity-70"
+          style={{ opacity: !omdbKeyChanged ? 0.4 : 1 }}
+        >
+          <Text className="text-[#6366f1] text-base font-medium">
+            {!omdbKey.trim() && savedOmdbKey ? 'Clear Key' : 'Save Key'}
+          </Text>
+          {savingOmdbKey ? <ActivityIndicator color="#6366f1" size="small" /> : null}
+        </TouchableOpacity>
+      </View>
+
+      {savedOmdbKey ? (
+        <Text className="text-[#22c55e] text-xs mb-6">✓ OMDb API key is set</Text>
+      ) : (
+        <Text className="text-[#f59e0b] text-xs mb-6">⚠ No OMDb key — searches will fail</Text>
+      )}
+
       {/* ── TMDB API Key section ── */}
       <Text className="text-[#94a3b8] text-xs font-semibold uppercase tracking-widest mb-3">
         TMDB API Key
@@ -119,7 +205,7 @@ export default function SettingsScreen() {
         <View className="px-4 pt-4 pb-3">
           <Text className="text-[#f1f5f9] text-base font-medium mb-1">API Key (v3)</Text>
           <Text className="text-[#64748b] text-sm mb-3">
-            Required for search, recommendations, and show details.{'\n'}
+            Required for Recommendations and release tracking only.{'\n'}
             Get yours at themoviedb.org → Settings → API.
           </Text>
 

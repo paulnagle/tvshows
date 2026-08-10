@@ -15,7 +15,7 @@ import {
   updateShowOrder,
   updateImdbRating,
 } from '../db/database';
-import { getSeasonEpisodeCounts, getShowDetails } from '../services/tmdb';
+import { getSeasonEpisodeCounts, getShowDetails } from '../services/omdb';
 import {
   getReleaseBadgeColor,
   getReleaseSubtitle,

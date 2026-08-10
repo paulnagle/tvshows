@@ -9,7 +9,7 @@ import {
   moveToWatchToWatching,
   updateImdbRating,
 } from '../db/database';
-import { getShowDetails } from '../services/tmdb';
+import { getShowDetails } from '../services/omdb';
 import {
   getReleaseSubtitle,
   loadToWatchReleaseStatuses,
