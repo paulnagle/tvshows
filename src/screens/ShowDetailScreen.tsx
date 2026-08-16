@@ -152,7 +152,7 @@ export default function ShowDetailScreen() {
         <Image
           source={{ uri: show.poster }}
           className="w-full h-72 bg-[#1e293b]"
-          resizeMode="cover"
+          resizeMode="contain"
         />
       ) : (
         <View className="w-full h-72 bg-[#1e293b] items-center justify-center">

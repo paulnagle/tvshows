@@ -1,7 +1,7 @@
 import type { Show } from '../types';
 import { getOmdbApiKey } from './omdbApiKey';
 
-const BASE_URL = 'http://www.omdbapi.com/';
+const BASE_URL = 'https://www.omdbapi.com/';
 
 // ─── OMDb response types ──────────────────────────────────────────────────────
 

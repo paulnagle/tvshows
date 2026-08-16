@@ -107,6 +107,7 @@ export async function getShowsByGenre(genre: string): Promise<Show[]> {
     'vote_count.gte': '100',
     'first_air_date.gte': `${currentYear - 2}-01-01`,
     language: 'en-US',
+    with_original_language: 'en',
     page: '1',
   });
 
